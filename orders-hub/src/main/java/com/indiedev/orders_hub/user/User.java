@@ -2,6 +2,7 @@ package com.indiedev.orders_hub.user;
 
 import com.indiedev.orders_hub.common.BaseEnity;
 import com.indiedev.orders_hub.connected_accounts.ConnectedAccount;
+import com.indiedev.orders_hub.order.Order;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -37,4 +38,11 @@ public class User extends BaseEnity {
             orphanRemoval = true
     )
     private List<ConnectedAccount> connectedAccounts = new ArrayList<>();
+
+    @OneToMany(
+            mappedBy = "user",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
+    )
+    private List<Order> orders = new ArrayList<>();
 }
