@@ -1,8 +1,6 @@
-  target/
-  .git/
-  .idea/
-  *.iml
-  .env
-  .DS_Store
-  exit
-  openjdk.jdk
+.env
+.git
+.idea
+target
+HELP.md
+*.iml
