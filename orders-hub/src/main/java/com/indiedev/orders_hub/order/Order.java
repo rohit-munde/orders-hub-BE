@@ -1,6 +1,6 @@
 package com.indiedev.orders_hub.order;
 
-import com.indiedev.orders_hub.common.BaseEnity;
+import com.indiedev.orders_hub.common.BaseEntity;
 import com.indiedev.orders_hub.user.User;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -14,7 +14,7 @@ import java.util.List;
 @Setter
 @Entity
 @Table(name = "orders")
-public class Order extends BaseEnity {
+public class Order extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = jakarta.persistence.GenerationType.IDENTITY)
@@ -47,5 +47,5 @@ public class Order extends BaseEnity {
             cascade = CascadeType.ALL,
             orphanRemoval = true
     )
-    private List<OrderItems> orderItems = new ArrayList<>();
+    private List<OrderItem> orderItems = new ArrayList<>();
 }

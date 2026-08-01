@@ -1,11 +1,11 @@
-package com.indiedev.orders_hub.connected_accounts;
+package com.indiedev.orders_hub.connectedaccount;
 
-import com.indiedev.orders_hub.common.BaseEnity;
+import com.indiedev.orders_hub.common.BaseEntity;
 import com.indiedev.orders_hub.user.User;
 import jakarta.persistence.*;
 
 @Entity(name = "connected_accounts")
-public class ConnectedAccount extends BaseEnity {
+public class ConnectedAccount extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = jakarta.persistence.GenerationType.IDENTITY)

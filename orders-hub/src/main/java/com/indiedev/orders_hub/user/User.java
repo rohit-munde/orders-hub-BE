@@ -1,7 +1,7 @@
 package com.indiedev.orders_hub.user;
 
-import com.indiedev.orders_hub.common.BaseEnity;
-import com.indiedev.orders_hub.connected_accounts.ConnectedAccount;
+import com.indiedev.orders_hub.common.BaseEntity;
+import com.indiedev.orders_hub.connectedaccount.ConnectedAccount;
 import com.indiedev.orders_hub.order.Order;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -13,7 +13,7 @@ import java.util.List;
 @Getter
 @Setter
 @Entity(name = "users")
-public class User extends BaseEnity {
+public class User extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = jakarta.persistence.GenerationType.IDENTITY)

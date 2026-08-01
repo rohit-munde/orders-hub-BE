@@ -1,6 +1,6 @@
 package com.indiedev.orders_hub.order;
 
-import com.indiedev.orders_hub.common.BaseEnity;
+import com.indiedev.orders_hub.common.BaseEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -10,7 +10,7 @@ import java.math.BigDecimal;
 @Getter
 @Setter
 @Entity(name = "order_items")
-public class OrderItems extends BaseEnity {
+public class OrderItem extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = jakarta.persistence.GenerationType.IDENTITY)
