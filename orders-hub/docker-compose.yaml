@@ -29,8 +29,10 @@ services:
             SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/${MYSQL_DATABASE}
             SPRING_DATASOURCE_USERNAME: ${MYSQL_USER}
             SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
-            GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-            GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+            GOOGLE_WEB_CLIENT_ID: ${GOOGLE_WEB_CLIENT_ID}
+            GOOGLE_WEB_CLIENT_SECRET: ${GOOGLE_WEB_CLIENT_SECRET}
+            APP_JWT_SECRET: ${APP_JWT_SECRET}
+            TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY}
         depends_on:
           db:
             condition: service_healthy

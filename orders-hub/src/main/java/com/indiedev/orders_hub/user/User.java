@@ -25,8 +25,8 @@ public class User extends BaseEntity {
     @Column(nullable = false, length = 100)
     private String name;
 
-    @Column(name = "google_user_id", nullable = false, length = 100)
-    private long google_id;
+    @Column(name = "google_user_id", nullable = false, unique = true, length = 255)
+    private String googleId;
 
     @Column(name = "profile_url", length = 2048)
     private String profileUrl;

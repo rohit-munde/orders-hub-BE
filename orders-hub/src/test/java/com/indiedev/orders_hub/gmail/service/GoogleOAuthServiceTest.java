@@ -1,0 +1,101 @@
+package com.indiedev.orders_hub.gmail.service;
+
+import com.indiedev.orders_hub.gmail.config.GoogleOAuthProperties;
+import com.indiedev.orders_hub.gmail.exception.GoogleOAuthExchangeException;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestClient;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.springframework.test.web.client.ExpectedCount.once;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withResourceNotFound;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
+
+class GoogleOAuthServiceTest {
+
+    private MockRestServiceServer server;
+    private GoogleOAuthService googleOAuthService;
+
+    @BeforeEach
+    void setUp() {
+        RestClient.Builder builder = RestClient.builder();
+        server = MockRestServiceServer.bindTo(builder).build();
+        googleOAuthService = new GoogleOAuthService(
+                builder,
+                new GoogleOAuthProperties(
+                        "web-client-id",
+                        "web-client-secret"
+                )
+        );
+    }
+
+    @Test
+    void exchangesAuthorizationCodeAndMapsGoogleTokenResponse() {
+        MultiValueMap<String, String> expectedForm = new LinkedMultiValueMap<>();
+        expectedForm.add("grant_type", "authorization_code");
+        expectedForm.add("code", "server-auth-code");
+        expectedForm.add("client_id", "web-client-id");
+        expectedForm.add("client_secret", "web-client-secret");
+
+        server.expect(once(), requestTo(GoogleOAuthService.TOKEN_ENDPOINT))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(content().formData(expectedForm))
+                .andRespond(withSuccess("""
+                        {
+                          "access_token": "access-token",
+                          "refresh_token": "refresh-token",
+                          "expires_in": 3600,
+                          "scope": "openid https://www.googleapis.com/auth/gmail.readonly",
+                          "token_type": "Bearer"
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        GoogleOAuthToken token = googleOAuthService.exchangeAuthorizationCode("server-auth-code");
+
+        assertEquals("access-token", token.accessToken());
+        assertEquals("refresh-token", token.refreshToken());
+        assertEquals(3600, token.expiresIn());
+        assertEquals("Bearer", token.tokenType());
+        server.verify();
+    }
+
+    @Test
+    void acceptsResponseWithoutRefreshTokenSoExistingConnectionCanRetainItsToken() {
+        server.expect(requestTo(GoogleOAuthService.TOKEN_ENDPOINT))
+                .andRespond(withSuccess("""
+                        {
+                          "access_token": "access-token",
+                          "expires_in": 3600,
+                          "scope": "https://www.googleapis.com/auth/gmail.readonly",
+                          "token_type": "Bearer"
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        GoogleOAuthToken token = googleOAuthService.exchangeAuthorizationCode("server-auth-code");
+
+        assertNull(token.refreshToken());
+        server.verify();
+    }
+
+    @Test
+    void convertsGoogleHttpFailureToOAuthExchangeException() {
+        server.expect(requestTo(GoogleOAuthService.TOKEN_ENDPOINT))
+                .andRespond(withResourceNotFound());
+
+        assertThrows(
+                GoogleOAuthExchangeException.class,
+                () -> googleOAuthService.exchangeAuthorizationCode("invalid-code")
+        );
+        server.verify();
+    }
+}
