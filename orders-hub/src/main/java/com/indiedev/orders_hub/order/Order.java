@@ -29,7 +29,7 @@ public class Order extends BaseEntity {
     @Column(nullable = true, length = 255)
     private String brandName;
 
-    @Column(name = "merchant_key", nullable = false, length = 255)
+    @Column(name = "merchant_key", length = 255)
     private String merchantKey;
 
     @Column(name = "order_no", nullable = false, length = 255)

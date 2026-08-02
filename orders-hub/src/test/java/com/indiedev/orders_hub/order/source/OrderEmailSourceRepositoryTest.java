@@ -16,6 +16,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 
 import java.time.Instant;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @DataJpaTest
@@ -68,6 +69,14 @@ class OrderEmailSourceRepositoryTest {
                 DataIntegrityViolationException.class,
                 () -> orderRepository.saveAndFlush(order())
         );
+    }
+
+    @Test
+    void allowsLegacyOrderWithoutMerchantUntilItCanBeBackfilled() {
+        Order legacyOrder = order();
+        legacyOrder.setMerchantKey(null);
+
+        assertDoesNotThrow(() -> orderRepository.saveAndFlush(legacyOrder));
     }
 
     private OrderEmailSource source(String gmailMessageId) {

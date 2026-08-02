@@ -48,16 +48,20 @@ public class GmailSyncService {
         int parserVersion = orderParser.version();
 
         for (String gmailMessageId : gmailMessageIds) {
-            if (!importService.shouldProcess(account.getId(), gmailMessageId, parserVersion)) {
-                counts.skipped++;
-                continue;
-            }
-
             try {
+                if (!importService.shouldProcess(account.getId(), gmailMessageId, parserVersion)) {
+                    counts.skipped++;
+                    continue;
+                }
                 GmailOrderPreview candidate = orderParser.parse(
                         gmailApiClient.getFullMessage(accessToken, gmailMessageId)
                 );
-                count(importService.importOrder(account, candidate, parserVersion), candidate, counts, importedOrders);
+                count(
+                        importService.importOrder(account, gmailMessageId, candidate, parserVersion),
+                        candidate,
+                        counts,
+                        importedOrders
+                );
             } catch (RuntimeException exception) {
                 counts.failed++;
                 recordFailure(account, gmailMessageId, parserVersion);

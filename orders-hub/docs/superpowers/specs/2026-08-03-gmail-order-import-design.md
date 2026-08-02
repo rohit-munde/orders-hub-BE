@@ -43,6 +43,8 @@ The existing table gains:
 
 `status` uses a constrained enum: `UNKNOWN`, `CONFIRMED`, `DISPATCHED`, `SHIPPED`, `OUT_FOR_DELIVERY`, `DELIVERED`, or `CANCELLED`.
 
+`merchant_key` remains nullable at the schema level during the legacy transition. Every new Gmail-imported order has a merchant key. When exactly one older order has the same user/order number and no merchant key, the first matching import backfills it; ambiguous legacy rows are left unchanged rather than guessed. A later repository-wide migration can enforce non-null after legacy data has been audited.
+
 ### `order_email_sources`
 
 The new table contains:
@@ -97,6 +99,8 @@ Each message is handled independently:
 - one failure does not discard successful imports from the same batch.
 
 A failure of the Gmail search itself fails the sync through the existing safe Google API exception handling.
+
+Order/source writes acquire a database write lock on the OrdersHub user row. This serializes concurrent imports for the same user, including first inserts, so a stale message cannot overwrite a newer lifecycle state or downgrade an already imported source.
 
 ## Response Contract
 

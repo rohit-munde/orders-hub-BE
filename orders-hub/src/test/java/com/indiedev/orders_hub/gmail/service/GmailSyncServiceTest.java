@@ -53,7 +53,7 @@ class GmailSyncServiceTest {
         GmailOrderPreview preview = candidate("saved", "ORDER-1");
         when(gmailApiClient.getFullMessage("access-token", "saved")).thenReturn(content);
         when(parser.parse(content)).thenReturn(preview);
-        when(importService.importOrder(account, preview, 1))
+        when(importService.importOrder(account, "saved", preview, 1))
                 .thenReturn(new GmailOrderImportService.ImportResult(SAVED, new Order()));
         when(gmailApiClient.getFullMessage("access-token", "failed"))
                 .thenThrow(new GoogleApiException("Unable to fetch Gmail message"));
@@ -82,7 +82,7 @@ class GmailSyncServiceTest {
         GmailOrderPreview preview = candidate("ignored", null);
         when(gmailApiClient.getFullMessage("access-token", "ignored")).thenReturn(content);
         when(parser.parse(content)).thenReturn(preview);
-        when(importService.importOrder(account, preview, 1))
+        when(importService.importOrder(account, "ignored", preview, 1))
                 .thenReturn(new GmailOrderImportService.ImportResult(IGNORED, null));
 
         GmailSyncPreview result = service.sync(account, "access-token");
@@ -91,6 +91,33 @@ class GmailSyncServiceTest {
         assertEquals(0, result.savedCount());
         assertEquals(1, result.ignoredCount());
         assertEquals(List.of(), result.orders());
+    }
+
+    @Test
+    void continuesWhenProcessingStateLookupFailsForOneMessage() {
+        when(finder.find("access-token")).thenReturn(new OrderEmailCandidateFinder.CandidateBatch(
+                "subject:order", List.of("lookup-failed", "saved")
+        ));
+        when(importService.shouldProcess(11, "lookup-failed", 1))
+                .thenThrow(new IllegalStateException("database unavailable"));
+        when(importService.shouldProcess(11, "saved", 1)).thenReturn(true);
+        GmailMessageContent content = new GmailMessageContent(
+                "saved", "Order shipped", "Amazon <orders@amazon.in>", "Order ID: ORDER-1"
+        );
+        GmailOrderPreview preview = candidate("saved", "ORDER-1");
+        when(gmailApiClient.getFullMessage("access-token", "saved")).thenReturn(content);
+        when(parser.parse(content)).thenReturn(preview);
+        when(importService.importOrder(account, "saved", preview, 1))
+                .thenReturn(new GmailOrderImportService.ImportResult(SAVED, new Order()));
+
+        GmailSyncPreview result = service.sync(account, "access-token");
+
+        assertEquals(2, result.candidateCount());
+        assertEquals(1, result.savedCount());
+        assertEquals(1, result.failedCount());
+        assertEquals(List.of(preview), result.orders());
+        verify(gmailApiClient, never()).getFullMessage("access-token", "lookup-failed");
+        verify(importService).recordFailure(account, "lookup-failed", 1);
     }
 
     private GmailOrderPreview candidate(String gmailMessageId, String orderNo) {

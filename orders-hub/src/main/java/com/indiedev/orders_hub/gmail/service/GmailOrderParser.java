@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -67,7 +68,7 @@ public class GmailOrderParser {
         }
 
         Matcher domain = SENDER_DOMAIN.matcher(sender);
-        return domain.find() ? domain.group(1).toLowerCase() : sender.trim();
+        return domain.find() ? domain.group(1).toLowerCase(Locale.ROOT) : sender.trim();
     }
 
     private String merchantKey(String sender) {
@@ -75,7 +76,7 @@ public class GmailOrderParser {
             return null;
         }
         Matcher domain = SENDER_DOMAIN.matcher(sender);
-        return domain.find() ? domain.group(1).toLowerCase() : null;
+        return domain.find() ? domain.group(1).toLowerCase(Locale.ROOT) : null;
     }
 
     private Amount amount(String body) {
@@ -124,7 +125,7 @@ public class GmailOrderParser {
     }
 
     private boolean contains(String text, String... values) {
-        String lowercaseText = text.toLowerCase();
+        String lowercaseText = text.toLowerCase(Locale.ROOT);
         for (String value : values) {
             if (lowercaseText.contains(value)) {
                 return true;

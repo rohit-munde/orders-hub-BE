@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Locale;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -103,5 +104,23 @@ class GmailOrderParserTest {
         GmailOrderPreview preview = parser.parse(message);
 
         assertNull(preview.merchantKey());
+    }
+
+    @Test
+    void normalizesMerchantDomainIndependentOfSystemLocale() {
+        Locale originalLocale = Locale.getDefault();
+        try {
+            Locale.setDefault(Locale.forLanguageTag("tr-TR"));
+            GmailOrderPreview preview = parser.parse(new GmailMessageContent(
+                    "message-locale",
+                    "Order confirmed",
+                    "Orders <orders@SHOPPING.IN>",
+                    "Order ID: ABC-123"
+            ));
+
+            assertEquals("shopping.in", preview.merchantKey());
+        } finally {
+            Locale.setDefault(originalLocale);
+        }
     }
 }
