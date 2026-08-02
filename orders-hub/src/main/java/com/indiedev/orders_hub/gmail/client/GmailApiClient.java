@@ -115,7 +115,7 @@ public class GmailApiClient {
     }
 
     private String findBody(MessagePayload payload, String mimeType) {
-        if (payload == null) {
+        if (payload == null || StringUtils.hasText(payload.filename())) {
             return null;
         }
         if (mimeType.equalsIgnoreCase(payload.mimeType()) && payload.body() != null) {
@@ -175,6 +175,7 @@ public class GmailApiClient {
 
     private record MessagePayload(
             String mimeType,
+            String filename,
             MessageBody body,
             List<MessagePayload> parts,
             List<MessageHeader> headers

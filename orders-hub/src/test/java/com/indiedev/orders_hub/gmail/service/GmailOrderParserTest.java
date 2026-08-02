@@ -59,4 +59,32 @@ class GmailOrderParserTest {
         assertEquals("UNKNOWN", preview.status());
         assertEquals(List.of(), preview.orderItems());
     }
+
+    @Test
+    void treatsExplicitNotPaidTextAsUnpaid() {
+        GmailMessageContent message = new GmailMessageContent(
+                "message-3",
+                "Payment update",
+                "Store <orders@store.example>",
+                "Payment status: not paid"
+        );
+
+        GmailOrderPreview preview = parser.parse(message);
+
+        assertEquals(Boolean.FALSE, preview.paid());
+    }
+
+    @Test
+    void usesDeliveredWhenEmailContainsEarlierDeliveryStates() {
+        GmailMessageContent message = new GmailMessageContent(
+                "message-4",
+                "Your order was delivered",
+                "Store <orders@store.example>",
+                "Shipped yesterday\nOut for delivery this morning\nDelivered today"
+        );
+
+        GmailOrderPreview preview = parser.parse(message);
+
+        assertEquals("DELIVERED", preview.status());
+    }
 }

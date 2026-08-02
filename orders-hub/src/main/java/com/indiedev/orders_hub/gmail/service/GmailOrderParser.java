@@ -25,7 +25,7 @@ public class GmailOrderParser {
             "(?i)\\b(?:delivery\\s+)?otp\\s*(?:is|:|-)?\\s*(\\d{4,8})\\b"
     );
     private static final Pattern UNPAID = Pattern.compile(
-            "(?i)\\bunpaid\\b|\\bpayment\\s+(?:failed|pending|declined)\\b"
+            "(?i)\\b(?:unpaid|not\\s+paid)\\b|\\bpayment\\s+(?:failed|pending|declined)\\b"
     );
     private static final Pattern PAID = Pattern.compile(
             "(?i)\\bpaid\\b|\\bpayment\\s+(?:successful|received|completed)\\b"
@@ -77,11 +77,11 @@ public class GmailOrderParser {
         if (contains(text, "cancelled", "canceled")) {
             return "CANCELLED";
         }
-        if (contains(text, "out for delivery")) {
-            return "OUT_FOR_DELIVERY";
-        }
         if (contains(text, "delivered")) {
             return "DELIVERED";
+        }
+        if (contains(text, "out for delivery")) {
+            return "OUT_FOR_DELIVERY";
         }
         if (contains(text, "shipped")) {
             return "SHIPPED";

@@ -137,6 +137,40 @@ class GmailApiClientTest {
         server.verify();
     }
 
+    @Test
+    void ignoresTextAttachmentsWhenSelectingTheMessageBody() {
+        String attachment = "Order number: WRONG-999";
+        String messageBody = "Order number: ORDER-789";
+        server.expect(once(), request ->
+                        assertEquals("/gmail/v1/users/me/messages/message-3", request.getURI().getPath()))
+                .andRespond(withSuccess("""
+                        {
+                          "id":"message-3",
+                          "payload":{
+                            "mimeType":"multipart/mixed",
+                            "headers":[],
+                            "parts":[
+                              {
+                                "mimeType":"text/plain",
+                                "filename":"invoice.txt",
+                                "body":{"data":"%s"}
+                              },
+                              {
+                                "mimeType":"text/plain",
+                                "filename":"",
+                                "body":{"data":"%s"}
+                              }
+                            ]
+                          }
+                        }
+                        """.formatted(base64Url(attachment), base64Url(messageBody)), MediaType.APPLICATION_JSON));
+
+        GmailMessageContent message = client.getFullMessage("access-token", "message-3");
+
+        assertEquals(messageBody, message.body());
+        server.verify();
+    }
+
     private String base64Url(String value) {
         return Base64.getUrlEncoder()
                 .withoutPadding()
