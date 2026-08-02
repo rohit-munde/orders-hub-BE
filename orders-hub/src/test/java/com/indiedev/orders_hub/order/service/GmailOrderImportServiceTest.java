@@ -156,33 +156,6 @@ class GmailOrderImportServiceTest {
     }
 
     @Test
-    void backfillsMerchantOnOneMatchingLegacyOrder() {
-        Order legacyOrder = new Order();
-        legacyOrder.setUser(account.getUser());
-        legacyOrder.setOrderNo("ORDER-123");
-        legacyOrder.setStatus(OrderStatus.CONFIRMED);
-        GmailOrderPreview candidate = candidate(
-                "message-legacy", "amazon.in", "Amazon", "ORDER-123",
-                null, null, null, null, OrderStatus.SHIPPED
-        );
-        when(sourceRepository.findByConnectedAccountIdAndGmailMessageId(11, "message-legacy"))
-                .thenReturn(Optional.empty());
-        when(orderRepository.findByUserIdAndMerchantKeyAndOrderNo(7, "amazon.in", "ORDER-123"))
-                .thenReturn(Optional.empty());
-        when(orderRepository.findAllByUserIdAndOrderNo(7, "ORDER-123"))
-                .thenReturn(List.of(legacyOrder));
-        when(orderRepository.save(legacyOrder)).thenReturn(legacyOrder);
-
-        GmailOrderImportService.ImportResult result = service.importOrder(
-                account, "message-legacy", candidate, 1
-        );
-
-        assertSame(legacyOrder, result.order());
-        assertEquals("amazon.in", legacyOrder.getMerchantKey());
-        assertEquals(OrderStatus.SHIPPED, legacyOrder.getStatus());
-    }
-
-    @Test
     void addsParsedItemsOnlyWhenTheOrderHasNone() {
         Order existing = new Order();
         existing.setUser(account.getUser());

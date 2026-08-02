@@ -43,7 +43,7 @@ The existing table gains:
 
 `status` uses a constrained enum: `UNKNOWN`, `CONFIRMED`, `DISPATCHED`, `SHIPPED`, `OUT_FOR_DELIVERY`, `DELIVERED`, or `CANCELLED`.
 
-`merchant_key` remains nullable at the schema level during the legacy transition. Every new Gmail-imported order has a merchant key. When exactly one older order has the same user/order number and no merchant key, the first matching import backfills it; ambiguous legacy rows are left unchanged rather than guessed. A later repository-wide migration can enforce non-null after legacy data has been audited.
+`merchant_key` remains nullable at the schema level during the legacy transition. Every new Gmail-imported order has a merchant key. Older merchant-less rows are never matched by order number alone because order numbers are not globally unique across merchants. A later audited migration can backfill trustworthy legacy identities and then enforce non-null.
 
 ### `order_email_sources`
 

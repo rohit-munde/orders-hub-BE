@@ -16,7 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.Instant;
-import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -83,11 +82,7 @@ public class GmailOrderImportService {
         Order order = orderRepository.findByUserIdAndMerchantKeyAndOrderNo(
                         account.getUser().getId(), merchantKey, orderNo
                 )
-                .or(() -> findLegacyOrder(account, orderNo))
                 .orElseGet(() -> newOrder(account, merchantKey, orderNo));
-        if (!StringUtils.hasText(order.getMerchantKey())) {
-            order.setMerchantKey(merchantKey);
-        }
         merge(order, candidate);
         order = orderRepository.save(order);
 
@@ -152,15 +147,6 @@ public class GmailOrderImportService {
         order.setOrderNo(orderNo);
         order.setStatus(OrderStatus.UNKNOWN);
         return order;
-    }
-
-    private Optional<Order> findLegacyOrder(ConnectedAccount account, String orderNo) {
-        List<Order> matches = orderRepository.findAllByUserIdAndOrderNo(
-                        account.getUser().getId(), orderNo
-                ).stream()
-                .filter(order -> !StringUtils.hasText(order.getMerchantKey()))
-                .toList();
-        return matches.size() == 1 ? Optional.of(matches.getFirst()) : Optional.empty();
     }
 
     private void merge(Order order, GmailOrderPreview candidate) {
