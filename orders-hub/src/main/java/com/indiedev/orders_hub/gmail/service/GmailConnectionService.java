@@ -36,13 +36,13 @@ public class GmailConnectionService {
         );
 
         try {
-            GmailSyncPreview preview = gmailSyncService.previewFirstPage(token.accessToken());
+            GmailSyncPreview preview = gmailSyncService.previewFirstOrder(token.accessToken());
             Instant syncedAt = Instant.now();
             account = persistenceService.markSyncSucceeded(account.getId(), syncedAt);
             LOGGER.info(
-                    "Initial Gmail search completed: connectedAccountId={}, messageCount={}",
+                    "Initial Gmail order preview completed: connectedAccountId={}, messageFound={}",
                     account.getId(),
-                    preview.messageCount()
+                    preview.gmailMessageId() != null
             );
             return new ConnectionResult(
                     account.getId(),

@@ -7,8 +7,6 @@ import com.indiedev.orders_hub.gmail.service.GoogleOAuthService;
 import com.indiedev.orders_hub.user.User;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -48,7 +46,7 @@ class AuthServiceTest {
                         9,
                         "shopper@gmail.com",
                         "SYNCED",
-                        new GmailSyncPreview("query", 0, false, List.of())
+                        new GmailSyncPreview("query", null, null)
                 )
         );
         when(jwtService.issue(user)).thenReturn("ordershub-jwt");

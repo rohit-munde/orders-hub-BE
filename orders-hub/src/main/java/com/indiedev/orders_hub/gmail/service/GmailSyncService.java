@@ -2,7 +2,7 @@ package com.indiedev.orders_hub.gmail.service;
 
 import com.indiedev.orders_hub.gmail.client.GmailApiClient;
 import com.indiedev.orders_hub.gmail.config.GmailSearchProperties;
-import com.indiedev.orders_hub.gmail.dto.GmailMessageSummary;
+import com.indiedev.orders_hub.gmail.dto.GmailMessageContent;
 import com.indiedev.orders_hub.gmail.dto.GmailSyncPreview;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,21 +18,20 @@ public class GmailSyncService {
 
     private static final Pattern NEWER_THAN = Pattern.compile("[1-9]\\d*[dmy]");
     private static final Pattern SEARCH_VALUE = Pattern.compile("[A-Za-z0-9._@+-]+");
-    private static final int MAX_PREVIEW_MESSAGES = 25;
 
     private final GmailApiClient gmailApiClient;
     private final GmailSearchProperties properties;
+    private final GmailOrderParser orderParser;
 
-    public GmailSyncPreview previewFirstPage(String accessToken) {
+    public GmailSyncPreview previewFirstOrder(String accessToken) {
         String query = buildQuery();
-        int messageLimit = Math.max(1, Math.min(properties.getMaxResults(), MAX_PREVIEW_MESSAGES));
-        GmailApiClient.MessagePage page = gmailApiClient.listMessageIds(accessToken, query, messageLimit);
-        List<GmailMessageSummary> messages = page.messageIds().stream()
-                .limit(messageLimit)
-                .map(messageId -> gmailApiClient.getMessageMetadata(accessToken, messageId))
-                .toList();
+        String gmailMessageId = gmailApiClient.findFirstMessageId(accessToken, query).orElse(null);
+        if (gmailMessageId == null) {
+            return new GmailSyncPreview(query, null, null);
+        }
 
-        return new GmailSyncPreview(query, messages.size(), page.hasNextPage(), messages);
+        GmailMessageContent message = gmailApiClient.getFullMessage(accessToken, gmailMessageId);
+        return new GmailSyncPreview(query, gmailMessageId, orderParser.parse(message));
     }
 
     private String buildQuery() {

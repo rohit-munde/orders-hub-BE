@@ -2,55 +2,57 @@ package com.indiedev.orders_hub.gmail.service;
 
 import com.indiedev.orders_hub.gmail.client.GmailApiClient;
 import com.indiedev.orders_hub.gmail.config.GmailSearchProperties;
-import com.indiedev.orders_hub.gmail.dto.GmailMessageSummary;
+import com.indiedev.orders_hub.gmail.dto.GmailMessageContent;
+import com.indiedev.orders_hub.gmail.dto.GmailOrderPreview;
 import com.indiedev.orders_hub.gmail.dto.GmailSyncPreview;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class GmailSyncServiceTest {
 
     @Test
-    void loginPreviewFetchesOnlyFirstPageAndReportsAnotherPage() {
+    void returnsOrderPreviewForTheFirstMatchingMessage() {
         GmailApiClient client = mock(GmailApiClient.class);
-        GmailSearchProperties properties = new GmailSearchProperties();
-        properties.setMaxResults(25);
-        GmailSyncService service = new GmailSyncService(client, properties);
+        GmailOrderParser parser = mock(GmailOrderParser.class);
+        GmailSearchProperties properties = configuredSearch();
+        GmailSyncService service = new GmailSyncService(client, properties, parser);
+        GmailMessageContent message = new GmailMessageContent(
+                "gmail-1", "Order shipped", "Store <orders@store.com>", "Order ID: ABC-123"
+        );
+        GmailOrderPreview orderPreview = new GmailOrderPreview(
+                "gmail-1", "Store", "ABC-123", null, null, null, "SHIPPED", List.of()
+        );
+        String expectedQuery = "newer_than:1y {subject:order subject:receipt from:amazon.in}";
+        when(client.findFirstMessageId("access-token", expectedQuery)).thenReturn(Optional.of("gmail-1"));
+        when(client.getFullMessage("access-token", "gmail-1")).thenReturn(message);
+        when(parser.parse(message)).thenReturn(orderPreview);
 
-        when(client.listMessageIds(anyString(), anyString(), eq(25)))
-                .thenReturn(new GmailApiClient.MessagePage(List.of("gmail-1"), true));
-        when(client.getMessageMetadata("access-token", "gmail-1"))
-                .thenReturn(new GmailMessageSummary(
-                        "gmail-1", "thread-1", "Order shipped", "store@example.com", "today", "<id>"
-                ));
+        GmailSyncPreview preview = service.previewFirstOrder("access-token");
 
-        GmailSyncPreview preview = service.previewFirstPage("access-token");
-
-        assertEquals(1, preview.messageCount());
-        assertTrue(preview.nextPageTokenAvailable());
-        verify(client).listMessageIds(anyString(), anyString(), anyInt());
+        assertEquals(expectedQuery, preview.query());
+        assertEquals("gmail-1", preview.gmailMessageId());
+        assertSame(orderPreview, preview.orderPreview());
     }
 
     @Test
-    void buildsAReadableServerSideQueryFromConfiguration() {
+    void returnsEmptyPreviewWhenNoMessageMatches() {
         GmailApiClient client = mock(GmailApiClient.class);
-        GmailSearchProperties properties = new GmailSearchProperties();
-        properties.setSubjectKeywords(List.of("order", "receipt"));
-        properties.setSenderDomains(List.of("amazon.in", "flipkart.com"));
-        when(client.listMessageIds(anyString(), anyString(), anyInt()))
-                .thenReturn(new GmailApiClient.MessagePage(List.of(), false));
+        GmailOrderParser parser = mock(GmailOrderParser.class);
+        GmailSearchProperties properties = configuredSearch();
+        GmailSyncService service = new GmailSyncService(client, properties, parser);
+        when(client.findFirstMessageId(anyString(), anyString())).thenReturn(Optional.empty());
 
-        new GmailSyncService(client, properties).previewFirstPage("access-token");
+        GmailSyncPreview preview = service.previewFirstOrder("access-token");
 
-        verify(client).listMessageIds(
-                "access-token",
-                "newer_than:1y {subject:order subject:receipt from:amazon.in from:flipkart.com}",
-                25
-        );
+        assertNull(preview.gmailMessageId());
+        assertNull(preview.orderPreview());
+        verify(client, never()).getFullMessage(anyString(), anyString());
+        verifyNoInteractions(parser);
     }
 
     @Test
@@ -61,21 +63,16 @@ class GmailSyncServiceTest {
 
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new GmailSyncService(mock(GmailApiClient.class), properties)
-                        .previewFirstPage("access-token")
+                () -> new GmailSyncService(
+                        mock(GmailApiClient.class), properties, mock(GmailOrderParser.class)
+                ).previewFirstOrder("access-token")
         );
     }
 
-    @Test
-    void capsTheLoginPreviewAtTwentyFiveMessages() {
-        GmailApiClient client = mock(GmailApiClient.class);
+    private GmailSearchProperties configuredSearch() {
         GmailSearchProperties properties = new GmailSearchProperties();
-        properties.setMaxResults(100);
-        when(client.listMessageIds(anyString(), anyString(), anyInt()))
-                .thenReturn(new GmailApiClient.MessagePage(List.of(), false));
-
-        new GmailSyncService(client, properties).previewFirstPage("access-token");
-
-        verify(client).listMessageIds(eq("access-token"), anyString(), eq(25));
+        properties.setSubjectKeywords(List.of("order", "receipt"));
+        properties.setSenderDomains(List.of("amazon.in"));
+        return properties;
     }
 }

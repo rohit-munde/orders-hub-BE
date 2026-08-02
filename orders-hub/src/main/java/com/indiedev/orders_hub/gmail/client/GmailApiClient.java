@@ -1,14 +1,18 @@
 package com.indiedev.orders_hub.gmail.client;
 
-import com.indiedev.orders_hub.gmail.dto.GmailMessageSummary;
+import com.indiedev.orders_hub.gmail.dto.GmailMessageContent;
 import com.indiedev.orders_hub.gmail.exception.GoogleApiException;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
+import org.springframework.web.util.HtmlUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 @Component
 public class GmailApiClient {
@@ -39,66 +43,56 @@ public class GmailApiClient {
         }
     }
 
-    public MessagePage listMessageIds(
-            String accessToken,
-            String query,
-            int maxResults
-    ) {
+    public Optional<String> findFirstMessageId(String accessToken, String query) {
         try {
             MessageListResponse response = restClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/gmail/v1/users/me/messages")
-                            .queryParam("maxResults", maxResults)
+                            .queryParam("maxResults", 1)
                             .queryParam("q", "{gmailQuery}")
                             .build(query))
                     .headers(headers -> headers.setBearerAuth(accessToken))
                     .retrieve()
                     .body(MessageListResponse.class);
 
-            if (response == null) {
-                return new MessagePage(List.of(), false);
+            if (response == null || response.messages() == null || response.messages().isEmpty()) {
+                return Optional.empty();
             }
-            List<String> messageIds = response.messages() == null
-                    ? List.of()
-                    : response.messages().stream().map(MessageReference::id).toList();
-            return new MessagePage(messageIds, StringUtils.hasText(response.nextPageToken()));
+            return Optional.ofNullable(response.messages().getFirst().id());
         } catch (RestClientException exception) {
             throw new GoogleApiException("Unable to search Gmail messages", exception);
         }
     }
 
-    public GmailMessageSummary getMessageMetadata(String accessToken, String gmailMessageId) {
+    public GmailMessageContent getFullMessage(String accessToken, String gmailMessageId) {
         try {
             MessageResponse response = restClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/gmail/v1/users/me/messages/{messageId}")
-                            .queryParam("format", "metadata")
-                            .queryParam("metadataHeaders", "Subject", "From", "Date", "Message-ID")
+                            .queryParam("format", "full")
                             .build(gmailMessageId))
                     .headers(headers -> headers.setBearerAuth(accessToken))
                     .retrieve()
                     .body(MessageResponse.class);
 
             if (response == null) {
-                throw new GoogleApiException("Gmail message metadata response was empty");
+                throw new GoogleApiException("Gmail message response was empty");
             }
 
             List<MessageHeader> headers = response.payload() == null || response.payload().headers() == null
                     ? Collections.emptyList()
                     : response.payload().headers();
 
-            return new GmailMessageSummary(
+            return new GmailMessageContent(
                     response.id(),
-                    response.threadId(),
                     headerValue(headers, "Subject"),
                     headerValue(headers, "From"),
-                    headerValue(headers, "Date"),
-                    headerValue(headers, "Message-ID")
+                    readableBody(response.payload())
             );
         } catch (GoogleApiException exception) {
             throw exception;
         } catch (RestClientException exception) {
-            throw new GoogleApiException("Unable to fetch Gmail message metadata", exception);
+            throw new GoogleApiException("Unable to fetch Gmail message", exception);
         }
     }
 
@@ -110,25 +104,84 @@ public class GmailApiClient {
                 .orElse(null);
     }
 
-    public record MessagePage(List<String> messageIds, boolean hasNextPage) {
-        public MessagePage {
-            messageIds = List.copyOf(messageIds);
+    private String readableBody(MessagePayload payload) {
+        String plainText = findBody(payload, "text/plain");
+        if (StringUtils.hasText(plainText)) {
+            return plainText.strip();
         }
+
+        String html = findBody(payload, "text/html");
+        return StringUtils.hasText(html) ? htmlToText(html) : "";
+    }
+
+    private String findBody(MessagePayload payload, String mimeType) {
+        if (payload == null) {
+            return null;
+        }
+        if (mimeType.equalsIgnoreCase(payload.mimeType()) && payload.body() != null) {
+            String decoded = decode(payload.body().data());
+            if (StringUtils.hasText(decoded)) {
+                return decoded;
+            }
+        }
+        if (payload.parts() != null) {
+            for (MessagePayload part : payload.parts()) {
+                String decoded = findBody(part, mimeType);
+                if (StringUtils.hasText(decoded)) {
+                    return decoded;
+                }
+            }
+        }
+        return null;
+    }
+
+    private String decode(String encodedBody) {
+        if (!StringUtils.hasText(encodedBody)) {
+            return null;
+        }
+        try {
+            byte[] decoded = Base64.getUrlDecoder().decode(encodedBody);
+            return new String(decoded, StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException exception) {
+            return null;
+        }
+    }
+
+    private String htmlToText(String html) {
+        String text = html
+                .replaceAll("(?is)<(script|style)[^>]*>.*?</\\1>", " ")
+                .replaceAll("(?i)<br\\s*/?>", "\n")
+                .replaceAll("(?i)</(?:p|div|li|tr|h[1-6])>", "\n")
+                .replaceAll("(?s)<[^>]+>", " ");
+        return HtmlUtils.htmlUnescape(text)
+                .replace('\u00a0', ' ')
+                .replaceAll("[ \\t\\x0B\\f\\r]+", " ")
+                .replaceAll(" *\n *", "\n")
+                .replaceAll("\n{3,}", "\n\n")
+                .strip();
     }
 
     private record ProfileResponse(String emailAddress) {
     }
 
-    private record MessageListResponse(List<MessageReference> messages, String nextPageToken) {
+    private record MessageListResponse(List<MessageReference> messages) {
     }
 
     private record MessageReference(String id) {
     }
 
-    private record MessageResponse(String id, String threadId, MessagePayload payload) {
+    private record MessageResponse(String id, MessagePayload payload) {
     }
 
-    private record MessagePayload(List<MessageHeader> headers) {
+    private record MessagePayload(
+            String mimeType,
+            MessageBody body,
+            List<MessagePayload> parts,
+            List<MessageHeader> headers
+    ) {
+    }
+
+    private record MessageBody(String data) {
     }
 
     private record MessageHeader(String name, String value) {

@@ -1,11 +1,9 @@
 package com.indiedev.orders_hub.gmail.dto;
 
-public record GmailMessageSummary(
+public record GmailMessageContent(
         String gmailMessageId,
-        String threadId,
         String subject,
         String from,
-        String date,
-        String messageId
+        String body
 ) {
 }

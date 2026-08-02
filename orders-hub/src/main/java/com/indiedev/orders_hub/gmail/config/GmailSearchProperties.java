@@ -14,7 +14,6 @@ import java.util.List;
 public class GmailSearchProperties {
 
     private String newerThan = "1y";
-    private int maxResults = 25;
     private List<String> subjectKeywords = List.of(
             "order", "ordered", "shipped", "delivered", "dispatched", "invoice", "receipt"
     );
