@@ -1,59 +1,99 @@
 package com.indiedev.orders_hub.gmail.service;
 
+import com.indiedev.orders_hub.connectedaccount.ConnectedAccount;
 import com.indiedev.orders_hub.gmail.client.GmailApiClient;
-import com.indiedev.orders_hub.gmail.config.GmailSearchProperties;
-import com.indiedev.orders_hub.gmail.dto.GmailMessageContent;
+import com.indiedev.orders_hub.gmail.dto.GmailOrderPreview;
 import com.indiedev.orders_hub.gmail.dto.GmailSyncPreview;
+import com.indiedev.orders_hub.order.service.GmailOrderImportService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Pattern;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class GmailSyncService {
 
-    private static final Pattern NEWER_THAN = Pattern.compile("[1-9]\\d*[dmy]");
-    private static final Pattern SEARCH_VALUE = Pattern.compile("[A-Za-z0-9._@+-]+");
-
+    private final OrderEmailCandidateFinder candidateFinder;
     private final GmailApiClient gmailApiClient;
-    private final GmailSearchProperties properties;
     private final GmailOrderParser orderParser;
+    private final GmailOrderImportService importService;
 
-    public GmailSyncPreview previewFirstOrder(String accessToken) {
-        String query = buildQuery();
-        String gmailMessageId = gmailApiClient.findFirstMessageId(accessToken, query).orElse(null);
-        if (gmailMessageId == null) {
-            return new GmailSyncPreview(query, null, null);
-        }
+    public GmailSyncPreview sync(ConnectedAccount account, String accessToken) {
+        OrderEmailCandidateFinder.CandidateBatch batch = candidateFinder.find(accessToken);
+        List<GmailOrderPreview> importedOrders = new ArrayList<>();
+        ImportCounts counts = importCandidates(account, accessToken, batch.gmailMessageIds(), importedOrders);
 
-        GmailMessageContent message = gmailApiClient.getFullMessage(accessToken, gmailMessageId);
-        return new GmailSyncPreview(query, gmailMessageId, orderParser.parse(message));
+        return new GmailSyncPreview(
+                batch.query(),
+                batch.gmailMessageIds().size(),
+                counts.saved,
+                counts.skipped,
+                counts.ignored,
+                counts.failed,
+                importedOrders
+        );
     }
 
-    private String buildQuery() {
-        String newerThan = properties.getNewerThan();
-        if (!StringUtils.hasText(newerThan) || !NEWER_THAN.matcher(newerThan).matches()) {
-            throw new IllegalArgumentException("Gmail newer-than must look like 30d, 6m, or 1y");
-        }
+    private ImportCounts importCandidates(
+            ConnectedAccount account,
+            String accessToken,
+            List<String> gmailMessageIds,
+            List<GmailOrderPreview> importedOrders
+    ) {
+        ImportCounts counts = new ImportCounts();
+        int parserVersion = orderParser.version();
 
-        List<String> rules = new ArrayList<>();
-        properties.getSubjectKeywords().forEach(value -> rules.add("subject:" + safeValue(value)));
-        properties.getSenderDomains().forEach(value -> rules.add("from:" + safeValue(value)));
-        if (rules.isEmpty()) {
-            throw new IllegalArgumentException("At least one Gmail search rule is required");
-        }
+        for (String gmailMessageId : gmailMessageIds) {
+            if (!importService.shouldProcess(account.getId(), gmailMessageId, parserVersion)) {
+                counts.skipped++;
+                continue;
+            }
 
-        return "newer_than:" + newerThan + " {" + String.join(" ", rules) + "}";
+            try {
+                GmailOrderPreview candidate = orderParser.parse(
+                        gmailApiClient.getFullMessage(accessToken, gmailMessageId)
+                );
+                count(importService.importOrder(account, candidate, parserVersion), candidate, counts, importedOrders);
+            } catch (RuntimeException exception) {
+                counts.failed++;
+                recordFailure(account, gmailMessageId, parserVersion);
+            }
+        }
+        return counts;
     }
 
-    private String safeValue(String value) {
-        if (!StringUtils.hasText(value) || !SEARCH_VALUE.matcher(value).matches()) {
-            throw new IllegalArgumentException("Invalid Gmail search value in configuration");
+    private void count(
+            GmailOrderImportService.ImportResult result,
+            GmailOrderPreview candidate,
+            ImportCounts counts,
+            List<GmailOrderPreview> importedOrders
+    ) {
+        switch (result.outcome()) {
+            case SAVED -> {
+                counts.saved++;
+                importedOrders.add(candidate);
+            }
+            case SKIPPED -> counts.skipped++;
+            case IGNORED -> counts.ignored++;
         }
-        return value;
+    }
+
+    private void recordFailure(ConnectedAccount account, String gmailMessageId, int parserVersion) {
+        try {
+            importService.recordFailure(account, gmailMessageId, parserVersion);
+        } catch (RuntimeException exception) {
+            log.warn("Unable to record Gmail import failure for connected account {}", account.getId());
+        }
+    }
+
+    private static final class ImportCounts {
+        private int saved;
+        private int skipped;
+        private int ignored;
+        private int failed;
     }
 }

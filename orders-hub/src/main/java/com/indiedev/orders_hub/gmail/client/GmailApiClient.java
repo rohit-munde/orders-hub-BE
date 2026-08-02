@@ -12,7 +12,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 
 @Component
 public class GmailApiClient {
@@ -41,10 +40,6 @@ public class GmailApiClient {
         } catch (RestClientException exception) {
             throw new GoogleApiException("Unable to fetch Gmail profile", exception);
         }
-    }
-
-    public Optional<String> findFirstMessageId(String accessToken, String query) {
-        return findMessageIds(accessToken, query, 1).stream().findFirst();
     }
 
     public List<String> findMessageIds(String accessToken, String query, int maxResults) {
