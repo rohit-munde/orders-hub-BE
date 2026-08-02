@@ -1,6 +1,5 @@
 package com.indiedev.orders_hub.auth.service;
 
-import com.indiedev.orders_hub.auth.response.GoogleUserResponse;
 import com.indiedev.orders_hub.user.User;
 import com.indiedev.orders_hub.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -9,12 +8,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class AuthPersistenceService {
+public class GoogleUserService {
 
     private final UserRepository userRepository;
 
     @Transactional
-    public User createOrUpdateGoogleUser(GoogleUserResponse googleUser) {
+    public User createOrUpdate(GoogleTokenVerifier.GoogleUser googleUser) {
         User user = userRepository.findByGoogleId(googleUser.subject())
                 .orElseGet(User::new);
 

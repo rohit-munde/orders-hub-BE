@@ -7,12 +7,11 @@ import java.util.Base64;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
-class AesGcmTokenEncryptionServiceTest {
+class TokenEncryptionServiceTest {
 
-    private final AesGcmTokenEncryptionService encryptionService =
-            new AesGcmTokenEncryptionService(
-                    Base64.getEncoder().encodeToString(new byte[32])
-            );
+    private final TokenEncryptionService encryptionService = new TokenEncryptionService(
+            Base64.getEncoder().encodeToString(new byte[32])
+    );
 
     @Test
     void encryptsWithRandomIvAndDecryptsToken() {

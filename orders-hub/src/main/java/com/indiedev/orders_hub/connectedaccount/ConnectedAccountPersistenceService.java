@@ -1,8 +1,7 @@
 package com.indiedev.orders_hub.connectedaccount;
 
 import com.indiedev.orders_hub.gmail.exception.ConnectedAccountConflictException;
-import com.indiedev.orders_hub.gmail.exception.RefreshTokenMissingException;
-import com.indiedev.orders_hub.gmail.service.GoogleOAuthToken;
+import com.indiedev.orders_hub.gmail.service.GoogleOAuthService;
 import com.indiedev.orders_hub.security.token.TokenEncryptionService;
 import com.indiedev.orders_hub.user.User;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +22,7 @@ public class ConnectedAccountPersistenceService {
     public ConnectedAccount storeConnection(
             User user,
             String email,
-            GoogleOAuthToken token,
+            GoogleOAuthService.Token token,
             Instant connectedAt
     ) {
         ConnectedAccount account = connectedAccountRepository
@@ -34,7 +33,9 @@ public class ConnectedAccountPersistenceService {
         if (StringUtils.hasText(token.refreshToken())) {
             account.setEncryptedRefreshToken(tokenEncryptionService.encrypt(token.refreshToken()));
         } else if (!StringUtils.hasText(account.getEncryptedRefreshToken())) {
-            throw new RefreshTokenMissingException();
+            throw new IllegalArgumentException(
+                    "Google did not return a refresh token; revoke access and reconnect with offline consent"
+            );
         }
 
         account.setEncryptedAccessToken(tokenEncryptionService.encrypt(token.accessToken()));
@@ -45,11 +46,12 @@ public class ConnectedAccountPersistenceService {
     }
 
     @Transactional
-    public void markSyncSucceeded(long accountId, Instant syncedAt) {
+    public ConnectedAccount markSyncSucceeded(long accountId, Instant syncedAt) {
         ConnectedAccount account = connectedAccountRepository.findById(accountId)
                 .orElseThrow(() -> new IllegalStateException("Connected account disappeared during sync"));
         account.setSyncStatus(ConnectedAccountSyncStatus.SYNCED);
         account.setLastSyncAt(syncedAt);
+        return account;
     }
 
     @Transactional

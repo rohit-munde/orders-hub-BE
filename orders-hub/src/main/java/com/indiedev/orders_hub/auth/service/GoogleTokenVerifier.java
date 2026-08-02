@@ -4,9 +4,9 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
-import com.indiedev.orders_hub.auth.response.GoogleUserResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -28,7 +28,7 @@ public class GoogleTokenVerifier {
                 .build();
     }
 
-    public GoogleUserResponse verify(String idToken) {
+    public GoogleUser verify(String idToken) {
         try {
             GoogleIdToken verifiedToken = verifier.verify(idToken);
 
@@ -37,11 +37,21 @@ public class GoogleTokenVerifier {
             }
 
             GoogleIdToken.Payload payload = verifiedToken.getPayload();
+            if (!StringUtils.hasText(payload.getSubject())
+                    || !StringUtils.hasText(payload.getEmail())
+                    || !Boolean.TRUE.equals(payload.getEmailVerified())) {
+                throw new IllegalArgumentException("Invalid Google ID token");
+            }
 
-            return new GoogleUserResponse(
+            String name = (String) payload.get("name");
+            if (!StringUtils.hasText(name)) {
+                name = payload.getEmail();
+            }
+
+            return new GoogleUser(
                     payload.getSubject(),
                     payload.getEmail(),
-                    (String) payload.get("name"),
+                    name,
                     (String) payload.get("picture")
             );
 
@@ -51,5 +61,8 @@ public class GoogleTokenVerifier {
                     exception
             );
         }
+    }
+
+    public record GoogleUser(String subject, String email, String name, String pictureUrl) {
     }
 }

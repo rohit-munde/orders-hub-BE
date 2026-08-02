@@ -1,7 +1,7 @@
 package com.indiedev.orders_hub.gmail.service;
 
 import com.indiedev.orders_hub.gmail.config.GoogleOAuthProperties;
-import com.indiedev.orders_hub.gmail.exception.GoogleOAuthExchangeException;
+import com.indiedev.orders_hub.gmail.exception.GoogleApiException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
@@ -54,18 +54,19 @@ class GoogleOAuthServiceTest {
                         {
                           "access_token": "access-token",
                           "refresh_token": "refresh-token",
+                          "id_token": "exchanged-id-token",
                           "expires_in": 3600,
                           "scope": "openid https://www.googleapis.com/auth/gmail.readonly",
                           "token_type": "Bearer"
                         }
                         """, MediaType.APPLICATION_JSON));
 
-        GoogleOAuthToken token = googleOAuthService.exchangeAuthorizationCode("server-auth-code");
+        GoogleOAuthService.Token token = googleOAuthService.exchangeAuthorizationCode("server-auth-code");
 
         assertEquals("access-token", token.accessToken());
         assertEquals("refresh-token", token.refreshToken());
+        assertEquals("exchanged-id-token", token.idToken());
         assertEquals(3600, token.expiresIn());
-        assertEquals("Bearer", token.tokenType());
         server.verify();
     }
 
@@ -75,25 +76,46 @@ class GoogleOAuthServiceTest {
                 .andRespond(withSuccess("""
                         {
                           "access_token": "access-token",
+                          "id_token": "exchanged-id-token",
                           "expires_in": 3600,
                           "scope": "https://www.googleapis.com/auth/gmail.readonly",
                           "token_type": "Bearer"
                         }
                         """, MediaType.APPLICATION_JSON));
 
-        GoogleOAuthToken token = googleOAuthService.exchangeAuthorizationCode("server-auth-code");
+        GoogleOAuthService.Token token = googleOAuthService.exchangeAuthorizationCode("server-auth-code");
 
         assertNull(token.refreshToken());
         server.verify();
     }
 
     @Test
-    void convertsGoogleHttpFailureToOAuthExchangeException() {
+    void rejectsResponseWithoutIdTokenBecauseTheGoogleIdentityCannotBeBound() {
+        server.expect(requestTo(GoogleOAuthService.TOKEN_ENDPOINT))
+                .andRespond(withSuccess("""
+                        {
+                          "access_token": "access-token",
+                          "expires_in": 3600,
+                          "scope": "https://www.googleapis.com/auth/gmail.readonly"
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        GoogleApiException exception = assertThrows(
+                GoogleApiException.class,
+                () -> googleOAuthService.exchangeAuthorizationCode("server-auth-code")
+        );
+
+        assertEquals("Google OAuth response did not include an ID token", exception.getMessage());
+        server.verify();
+    }
+
+    @Test
+    void convertsGoogleHttpFailureToSafeApiException() {
         server.expect(requestTo(GoogleOAuthService.TOKEN_ENDPOINT))
                 .andRespond(withResourceNotFound());
 
         assertThrows(
-                GoogleOAuthExchangeException.class,
+                GoogleApiException.class,
                 () -> googleOAuthService.exchangeAuthorizationCode("invalid-code")
         );
         server.verify();

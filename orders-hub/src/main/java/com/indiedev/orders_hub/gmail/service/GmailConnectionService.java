@@ -3,20 +3,15 @@ package com.indiedev.orders_hub.gmail.service;
 import com.indiedev.orders_hub.connectedaccount.ConnectedAccount;
 import com.indiedev.orders_hub.connectedaccount.ConnectedAccountPersistenceService;
 import com.indiedev.orders_hub.gmail.client.GmailApiClient;
-import com.indiedev.orders_hub.gmail.client.GmailProfile;
-import com.indiedev.orders_hub.gmail.dto.GmailConnectResponse;
-import com.indiedev.orders_hub.gmail.dto.GmailMessageSummary;
-import com.indiedev.orders_hub.user.AuthenticatedUserService;
+import com.indiedev.orders_hub.gmail.dto.GmailSyncPreview;
 import com.indiedev.orders_hub.user.User;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.Arrays;
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -26,37 +21,34 @@ public class GmailConnectionService {
             "https://www.googleapis.com/auth/gmail.readonly";
     private static final Logger LOGGER = LoggerFactory.getLogger(GmailConnectionService.class);
 
-    private final AuthenticatedUserService authenticatedUserService;
-    private final GoogleOAuthService googleOAuthService;
     private final GmailApiClient gmailApiClient;
+    private final GmailSyncService gmailSyncService;
     private final ConnectedAccountPersistenceService persistenceService;
 
-    public GmailConnectResponse connect(Authentication authentication, String serverAuthCode) {
-        User user = authenticatedUserService.requireUser(authentication);
-        GoogleOAuthToken token = googleOAuthService.exchangeAuthorizationCode(serverAuthCode);
+    public ConnectionResult connect(User user, GoogleOAuthService.Token token) {
         verifyGmailScope(token.scope());
-        GmailProfile profile = gmailApiClient.getProfile(token.accessToken());
-        LOGGER.info("Gmail profile fetch succeeded: emailAddressReceived=true");
+        String gmailAddress = gmailApiClient.getProfileEmail(token.accessToken());
         ConnectedAccount account = persistenceService.storeConnection(
                 user,
-                profile.emailAddress(),
+                gmailAddress,
                 token,
                 Instant.now()
         );
 
         try {
-            List<GmailMessageSummary> messages = gmailApiClient.searchOrderEmails(token.accessToken());
-            persistenceService.markSyncSucceeded(account.getId(), Instant.now());
+            GmailSyncPreview preview = gmailSyncService.previewFirstPage(token.accessToken());
+            Instant syncedAt = Instant.now();
+            account = persistenceService.markSyncSucceeded(account.getId(), syncedAt);
             LOGGER.info(
                     "Initial Gmail search completed: connectedAccountId={}, messageCount={}",
                     account.getId(),
-                    messages.size()
+                    preview.messageCount()
             );
-            return new GmailConnectResponse(
+            return new ConnectionResult(
                     account.getId(),
                     account.getEmail(),
-                    messages.size(),
-                    messages
+                    account.getSyncStatus().name(),
+                    preview
             );
         } catch (RuntimeException exception) {
             persistenceService.markSyncFailed(account.getId());
@@ -70,5 +62,13 @@ public class GmailConnectionService {
         if (!granted) {
             throw new IllegalArgumentException("Google did not grant Gmail read-only access");
         }
+    }
+
+    public record ConnectionResult(
+            long accountId,
+            String email,
+            String status,
+            GmailSyncPreview preview
+    ) {
     }
 }

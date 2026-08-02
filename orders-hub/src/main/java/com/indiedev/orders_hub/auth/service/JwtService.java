@@ -26,7 +26,7 @@ public class JwtService {
         this.tokenTtl = tokenTtl;
     }
 
-    public IssuedToken issue(User user) {
+    public String issue(User user) {
         Instant issuedAt = Instant.now();
         Instant expiresAt = issuedAt.plus(tokenTtl);
         JwtClaimsSet claims = JwtClaimsSet.builder()
@@ -37,11 +37,6 @@ public class JwtService {
                 .claim("userId", user.getId())
                 .build();
         JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();
-        String value = jwtEncoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
-
-        return new IssuedToken(value, tokenTtl.toSeconds());
-    }
-
-    public record IssuedToken(String value, long expiresIn) {
+        return jwtEncoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
     }
 }

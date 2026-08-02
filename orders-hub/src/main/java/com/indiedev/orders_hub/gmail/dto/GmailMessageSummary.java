@@ -5,6 +5,7 @@ public record GmailMessageSummary(
         String threadId,
         String subject,
         String from,
-        String date
+        String date,
+        String messageId
 ) {
 }

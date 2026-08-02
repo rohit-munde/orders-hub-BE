@@ -2,7 +2,7 @@ package com.indiedev.orders_hub.gmail.service;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.indiedev.orders_hub.gmail.config.GoogleOAuthProperties;
-import com.indiedev.orders_hub.gmail.exception.GoogleOAuthExchangeException;
+import com.indiedev.orders_hub.gmail.exception.GoogleApiException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -27,7 +27,7 @@ public class GoogleOAuthService {
         this.properties = properties;
     }
 
-    public GoogleOAuthToken exchangeAuthorizationCode(String serverAuthCode) {
+    public Token exchangeAuthorizationCode(String serverAuthCode) {
         if (!StringUtils.hasText(serverAuthCode)) {
             throw new IllegalArgumentException("Google server authorization code is required");
         }
@@ -47,7 +47,10 @@ public class GoogleOAuthService {
                     .body(TokenResponse.class);
 
             if (response == null || !StringUtils.hasText(response.accessToken())) {
-                throw new GoogleOAuthExchangeException("Google OAuth response did not include an access token");
+                throw new GoogleApiException("Google OAuth response did not include an access token");
+            }
+            if (!StringUtils.hasText(response.idToken())) {
+                throw new GoogleApiException("Google OAuth response did not include an ID token");
             }
 
             LOGGER.info(
@@ -55,18 +58,27 @@ public class GoogleOAuthService {
                     StringUtils.hasText(response.refreshToken())
             );
 
-            return new GoogleOAuthToken(
+            return new Token(
                     response.accessToken(),
                     response.refreshToken(),
                     response.expiresIn(),
                     response.scope(),
-                    response.tokenType()
+                    response.idToken()
             );
-        } catch (GoogleOAuthExchangeException exception) {
+        } catch (GoogleApiException exception) {
             throw exception;
         } catch (RestClientException exception) {
-            throw new GoogleOAuthExchangeException("Google authorization code exchange failed", exception);
+            throw new GoogleApiException("Google authorization code exchange failed", exception);
         }
+    }
+
+    public record Token(
+            String accessToken,
+            String refreshToken,
+            long expiresIn,
+            String scope,
+            String idToken
+    ) {
     }
 
     record TokenResponse(
@@ -74,7 +86,7 @@ public class GoogleOAuthService {
             @JsonProperty("refresh_token") String refreshToken,
             @JsonProperty("expires_in") long expiresIn,
             String scope,
-            @JsonProperty("token_type") String tokenType
+            @JsonProperty("id_token") String idToken
     ) {
     }
 }

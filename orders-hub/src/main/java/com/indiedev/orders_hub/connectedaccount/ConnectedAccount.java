@@ -31,12 +31,10 @@ public class ConnectedAccount extends BaseEntity {
     @Column(nullable = false, length = 255)
     private String email;
 
-    @Lob
-    @Column(name = "encrypted_refresh_token")
+    @Column(name = "encrypted_refresh_token", columnDefinition = "TEXT")
     private String encryptedRefreshToken;
 
-    @Lob
-    @Column(name = "encrypted_access_token")
+    @Column(name = "encrypted_access_token", columnDefinition = "TEXT")
     private String encryptedAccessToken;
 
     @Column(name = "access_token_expires_at")
