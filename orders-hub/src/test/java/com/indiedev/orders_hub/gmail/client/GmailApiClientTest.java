@@ -56,20 +56,20 @@ class GmailApiClientTest {
     }
 
     @Test
-    void findsOnlyTheFirstMatchingMessageId() {
+    void returnsAllIdsFromTheBoundedSearchResponse() {
         server.expect(once(), request -> {
                     String query = URLDecoder.decode(request.getURI().getRawQuery(), StandardCharsets.UTF_8);
                     assertEquals("/gmail/v1/users/me/messages", request.getURI().getPath());
-                    assertTrue(query.contains("maxResults=1"));
+                    assertTrue(query.contains("maxResults=25"));
                     assertTrue(query.contains("q=subject:order"));
                 })
                 .andRespond(withSuccess("""
-                        {"messages":[{"id":"message-1","threadId":"thread-1"}]}
+                        {"messages":[{"id":"message-1"},{"id":"message-2"}]}
                         """, MediaType.APPLICATION_JSON));
 
         assertEquals(
-                "message-1",
-                client.findFirstMessageId("access-token", "subject:order").orElseThrow()
+                java.util.List.of("message-1", "message-2"),
+                client.findMessageIds("access-token", "subject:order", 25)
         );
         server.verify();
     }

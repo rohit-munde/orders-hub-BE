@@ -44,11 +44,15 @@ public class GmailApiClient {
     }
 
     public Optional<String> findFirstMessageId(String accessToken, String query) {
+        return findMessageIds(accessToken, query, 1).stream().findFirst();
+    }
+
+    public List<String> findMessageIds(String accessToken, String query, int maxResults) {
         try {
             MessageListResponse response = restClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/gmail/v1/users/me/messages")
-                            .queryParam("maxResults", 1)
+                            .queryParam("maxResults", maxResults)
                             .queryParam("q", "{gmailQuery}")
                             .build(query))
                     .headers(headers -> headers.setBearerAuth(accessToken))
@@ -56,9 +60,12 @@ public class GmailApiClient {
                     .body(MessageListResponse.class);
 
             if (response == null || response.messages() == null || response.messages().isEmpty()) {
-                return Optional.empty();
+                return List.of();
             }
-            return Optional.ofNullable(response.messages().getFirst().id());
+            return response.messages().stream()
+                    .map(MessageReference::id)
+                    .filter(StringUtils::hasText)
+                    .toList();
         } catch (RestClientException exception) {
             throw new GoogleApiException("Unable to search Gmail messages", exception);
         }
