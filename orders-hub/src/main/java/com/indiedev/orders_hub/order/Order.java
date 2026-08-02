@@ -13,7 +13,13 @@ import java.util.List;
 @Getter
 @Setter
 @Entity
-@Table(name = "orders")
+@Table(
+        name = "orders",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_order_user_merchant_number",
+                columnNames = {"user_id", "merchant_key", "order_no"}
+        )
+)
 public class Order extends BaseEntity {
 
     @Id
@@ -23,20 +29,27 @@ public class Order extends BaseEntity {
     @Column(nullable = true, length = 255)
     private String brandName;
 
-    @Column(nullable = false, length = 255)
+    @Column(name = "merchant_key", nullable = false, length = 255)
+    private String merchantKey;
+
+    @Column(name = "order_no", nullable = false, length = 255)
     private String orderNo;
 
     @Column(nullable = true)
     private BigDecimal billAmount;
 
-    @Column
-    private boolean isPaid;
+    @Column(length = 3)
+    private String currency;
+
+    @Column(name = "is_paid")
+    private Boolean paid;
 
     @Column
     private String otp;
 
-    @Column(nullable = false)
-    private String status;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 32)
+    private OrderStatus status;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false, foreignKey = @ForeignKey(name = "fk_connected_order"))
