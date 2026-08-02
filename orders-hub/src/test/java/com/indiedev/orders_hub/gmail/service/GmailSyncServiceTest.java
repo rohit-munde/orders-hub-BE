@@ -5,6 +5,7 @@ import com.indiedev.orders_hub.gmail.config.GmailSearchProperties;
 import com.indiedev.orders_hub.gmail.dto.GmailMessageContent;
 import com.indiedev.orders_hub.gmail.dto.GmailOrderPreview;
 import com.indiedev.orders_hub.gmail.dto.GmailSyncPreview;
+import com.indiedev.orders_hub.order.OrderStatus;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -25,7 +26,8 @@ class GmailSyncServiceTest {
                 "gmail-1", "Order shipped", "Store <orders@store.com>", "Order ID: ABC-123"
         );
         GmailOrderPreview orderPreview = new GmailOrderPreview(
-                "gmail-1", "Store", "ABC-123", null, null, null, "SHIPPED", List.of()
+                "gmail-1", "store.com", "Store", "ABC-123", null, null,
+                null, null, OrderStatus.SHIPPED, List.of()
         );
         String expectedQuery = "newer_than:1y {subject:order subject:receipt from:amazon.in}";
         when(client.findFirstMessageId("access-token", expectedQuery)).thenReturn(Optional.of("gmail-1"));

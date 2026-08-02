@@ -2,6 +2,7 @@ package com.indiedev.orders_hub.gmail.service;
 
 import com.indiedev.orders_hub.gmail.dto.GmailMessageContent;
 import com.indiedev.orders_hub.gmail.dto.GmailOrderPreview;
+import com.indiedev.orders_hub.order.OrderStatus;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -31,13 +32,16 @@ class GmailOrderParserTest {
         GmailOrderPreview preview = parser.parse(message);
 
         assertEquals("message-1", preview.gmailMessageId());
+        assertEquals("amazon.in", preview.merchantKey());
         assertEquals("Amazon", preview.brandName());
         assertEquals("ORDER-123", preview.orderNo());
         assertEquals(new BigDecimal("1499.00"), preview.billAmount());
+        assertEquals("INR", preview.currency());
         assertEquals(Boolean.TRUE, preview.paid());
         assertEquals("482731", preview.otp());
-        assertEquals("SHIPPED", preview.status());
+        assertEquals(OrderStatus.SHIPPED, preview.status());
         assertEquals(List.of(), preview.orderItems());
+        assertEquals(1, parser.version());
     }
 
     @Test
@@ -52,11 +56,13 @@ class GmailOrderParserTest {
         GmailOrderPreview preview = parser.parse(message);
 
         assertEquals("shop.example", preview.brandName());
+        assertEquals("shop.example", preview.merchantKey());
         assertNull(preview.orderNo());
         assertNull(preview.billAmount());
+        assertNull(preview.currency());
         assertNull(preview.paid());
         assertNull(preview.otp());
-        assertEquals("UNKNOWN", preview.status());
+        assertEquals(OrderStatus.UNKNOWN, preview.status());
         assertEquals(List.of(), preview.orderItems());
     }
 
@@ -85,6 +91,17 @@ class GmailOrderParserTest {
 
         GmailOrderPreview preview = parser.parse(message);
 
-        assertEquals("DELIVERED", preview.status());
+        assertEquals(OrderStatus.DELIVERED, preview.status());
+    }
+
+    @Test
+    void leavesMerchantKeyNullWhenSenderHasNoEmailDomain() {
+        GmailMessageContent message = new GmailMessageContent(
+                "message-5", "Order confirmed", "Amazon", "Order ID: ORDER-500"
+        );
+
+        GmailOrderPreview preview = parser.parse(message);
+
+        assertNull(preview.merchantKey());
     }
 }

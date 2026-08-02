@@ -2,6 +2,7 @@ package com.indiedev.orders_hub.gmail.service;
 
 import com.indiedev.orders_hub.gmail.dto.GmailMessageContent;
 import com.indiedev.orders_hub.gmail.dto.GmailOrderPreview;
+import com.indiedev.orders_hub.order.OrderStatus;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -19,7 +20,7 @@ public class GmailOrderParser {
     );
     private static final Pattern BILL_AMOUNT = Pattern.compile(
             "(?i)\\b(?:grand\\s+total|order\\s+total|total\\s+amount|amount\\s+paid|bill\\s+amount|total)"
-                    + "\\s*:?\\s*(?:INR|USD|Rs\\.?)?\\s*[₹$]?\\s*([0-9][0-9,]*(?:\\.[0-9]{1,2})?)"
+                    + "\\s*:?\\s*(?:(INR|USD|Rs\\.?|₹|\\$)\\s*)?([0-9][0-9,]*(?:\\.[0-9]{1,2})?)"
     );
     private static final Pattern OTP = Pattern.compile(
             "(?i)\\b(?:delivery\\s+)?otp\\s*(?:is|:|-)?\\s*(\\d{4,8})\\b"
@@ -30,21 +31,29 @@ public class GmailOrderParser {
     private static final Pattern PAID = Pattern.compile(
             "(?i)\\bpaid\\b|\\bpayment\\s+(?:successful|received|completed)\\b"
     );
+    private static final int PARSER_VERSION = 1;
 
     public GmailOrderPreview parse(GmailMessageContent message) {
         String body = valueOrEmpty(message.body());
         String searchableText = valueOrEmpty(message.subject()) + "\n" + body;
+        Amount amount = amount(body);
 
         return new GmailOrderPreview(
                 message.gmailMessageId(),
+                merchantKey(message.from()),
                 brandName(message.from()),
                 extract(ORDER_NUMBER, body),
-                amount(body),
+                amount.value(),
+                amount.currency(),
                 paymentState(searchableText),
                 extract(OTP, body),
                 status(searchableText),
                 List.of()
         );
+    }
+
+    public int version() {
+        return PARSER_VERSION;
     }
 
     private String brandName(String sender) {
@@ -61,9 +70,28 @@ public class GmailOrderParser {
         return domain.find() ? domain.group(1).toLowerCase() : sender.trim();
     }
 
-    private BigDecimal amount(String body) {
-        String value = extract(BILL_AMOUNT, body);
-        return value == null ? null : new BigDecimal(value.replace(",", ""));
+    private String merchantKey(String sender) {
+        if (sender == null) {
+            return null;
+        }
+        Matcher domain = SENDER_DOMAIN.matcher(sender);
+        return domain.find() ? domain.group(1).toLowerCase() : null;
+    }
+
+    private Amount amount(String body) {
+        Matcher matcher = BILL_AMOUNT.matcher(body);
+        if (!matcher.find()) {
+            return new Amount(null, null);
+        }
+        String marker = matcher.group(1);
+        String currency = marker == null ? null : switch (marker.toUpperCase()) {
+            case "USD", "$" -> "USD";
+            default -> "INR";
+        };
+        return new Amount(
+                new BigDecimal(matcher.group(2).replace(",", "")),
+                currency
+        );
     }
 
     private Boolean paymentState(String text) {
@@ -73,26 +101,26 @@ public class GmailOrderParser {
         return PAID.matcher(text).find() ? true : null;
     }
 
-    private String status(String text) {
+    private OrderStatus status(String text) {
         if (contains(text, "cancelled", "canceled")) {
-            return "CANCELLED";
+            return OrderStatus.CANCELLED;
         }
         if (contains(text, "delivered")) {
-            return "DELIVERED";
+            return OrderStatus.DELIVERED;
         }
         if (contains(text, "out for delivery")) {
-            return "OUT_FOR_DELIVERY";
+            return OrderStatus.OUT_FOR_DELIVERY;
         }
         if (contains(text, "shipped")) {
-            return "SHIPPED";
+            return OrderStatus.SHIPPED;
         }
         if (contains(text, "dispatched")) {
-            return "DISPATCHED";
+            return OrderStatus.DISPATCHED;
         }
         if (contains(text, "confirmed", "order placed")) {
-            return "CONFIRMED";
+            return OrderStatus.CONFIRMED;
         }
-        return "UNKNOWN";
+        return OrderStatus.UNKNOWN;
     }
 
     private boolean contains(String text, String... values) {
@@ -112,5 +140,8 @@ public class GmailOrderParser {
 
     private String valueOrEmpty(String value) {
         return value == null ? "" : value;
+    }
+
+    private record Amount(BigDecimal value, String currency) {
     }
 }
