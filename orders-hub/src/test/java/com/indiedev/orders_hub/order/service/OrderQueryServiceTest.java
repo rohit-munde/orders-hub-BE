@@ -8,8 +8,13 @@ import com.indiedev.orders_hub.order.OrderItem;
 import com.indiedev.orders_hub.order.OrderRepository;
 import com.indiedev.orders_hub.order.OrderStatus;
 import com.indiedev.orders_hub.order.dto.OrderListResponse;
+import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -21,7 +26,7 @@ import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 class OrderQueryServiceTest {
 
@@ -43,16 +48,26 @@ class OrderQueryServiceTest {
         Order order = order(placedAt);
         ConnectedAccount account = new ConnectedAccount();
         account.setLastSyncAt(lastSyncedAt);
-        when(orderRepository.findAllForUserNewestFirst(7)).thenReturn(List.of(order));
+        when(orderRepository.findPageForUser(eq(7L), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(order), PageRequest.of(1, 20), 21));
         when(accountRepository.findFirstByUserIdAndProviderOrderByIdDesc(
                 7, ConnectedAccountProvider.GOOGLE
         )).thenReturn(Optional.of(account));
 
-        OrderListResponse response = service.getOrders(7);
+        OrderListResponse response = service.getOrders(
+                7,
+                PageRequest.of(1, 20, Sort.by("brandName").ascending())
+        );
 
         assertEquals(lastSyncedAt, response.lastSyncedAt());
-        assertEquals(1, response.orders().size());
-        OrderListResponse.OrderResponse mapped = response.orders().getFirst();
+        assertEquals(1, response.orders().content().size());
+        assertEquals(1, response.orders().pagination().page());
+        assertEquals(20, response.orders().pagination().size());
+        assertEquals(21, response.orders().pagination().totalElements());
+        assertEquals(2, response.orders().pagination().totalPages());
+        assertFalse(response.orders().pagination().hasNext());
+        assertTrue(response.orders().pagination().hasPrevious());
+        OrderListResponse.OrderResponse mapped = response.orders().content().getFirst();
         assertEquals(21, mapped.id());
         assertEquals("amazon.in", mapped.merchantKey());
         assertEquals("Amazon", mapped.brandName());
@@ -63,19 +78,27 @@ class OrderQueryServiceTest {
         assertEquals(OrderStatus.SHIPPED, mapped.status());
         assertEquals(placedAt, mapped.placedAt());
         assertEquals("USB-C Cable", mapped.items().getFirst().productName());
+
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(orderRepository).findPageForUser(eq(7L), pageableCaptor.capture());
+        assertEquals(1, pageableCaptor.getValue().getPageNumber());
+        assertEquals(20, pageableCaptor.getValue().getPageSize());
+        assertTrue(pageableCaptor.getValue().getSort().isUnsorted());
     }
 
     @Test
     void returnsOrdersWithNoLastSyncTimeWhenGmailIsNotConnected() {
-        when(orderRepository.findAllForUserNewestFirst(7)).thenReturn(List.of());
+        when(orderRepository.findPageForUser(eq(7L), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
         when(accountRepository.findFirstByUserIdAndProviderOrderByIdDesc(
                 7, ConnectedAccountProvider.GOOGLE
         )).thenReturn(Optional.empty());
 
-        OrderListResponse response = service.getOrders(7);
+        OrderListResponse response = service.getOrders(7, PageRequest.of(0, 20));
 
         assertNull(response.lastSyncedAt());
-        assertEquals(List.of(), response.orders());
+        assertEquals(List.of(), response.orders().content());
+        assertEquals(0, response.orders().pagination().totalElements());
     }
 
     @Test

@@ -6,7 +6,10 @@ import com.indiedev.orders_hub.order.Order;
 import com.indiedev.orders_hub.order.OrderItem;
 import com.indiedev.orders_hub.order.OrderRepository;
 import com.indiedev.orders_hub.order.dto.OrderListResponse;
+import com.indiedev.orders_hub.response.PageResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,16 +23,16 @@ public class OrderQueryService {
     private final ConnectedAccountRepository accountRepository;
 
     @Transactional(readOnly = true)
-    public OrderListResponse getOrders(long userId) {
+    public OrderListResponse getOrders(long userId, Pageable pageable) {
+        Pageable safePageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
         Instant lastSyncedAt = accountRepository
                 .findFirstByUserIdAndProviderOrderByIdDesc(userId, ConnectedAccountProvider.GOOGLE)
                 .map(account -> account.getLastSyncAt())
                 .orElse(null);
         return new OrderListResponse(
                 lastSyncedAt,
-                orderRepository.findAllForUserNewestFirst(userId).stream()
-                        .map(this::toResponse)
-                        .toList()
+                PageResponse.from(orderRepository.findPageForUser(userId, safePageable)
+                        .map(this::toResponse))
         );
     }
 

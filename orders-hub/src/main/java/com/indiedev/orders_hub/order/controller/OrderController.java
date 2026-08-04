@@ -4,7 +4,10 @@ import com.indiedev.orders_hub.order.dto.OrderListResponse;
 import com.indiedev.orders_hub.order.dto.OrderSyncResponse;
 import com.indiedev.orders_hub.order.service.OrderQueryService;
 import com.indiedev.orders_hub.order.service.OrderSyncService;
+import com.indiedev.orders_hub.response.ApiSuccessResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,8 +25,14 @@ public class OrderController {
     private final OrderSyncService syncService;
 
     @GetMapping
-    public OrderListResponse getOrders(@AuthenticationPrincipal Jwt jwt) {
-        return queryService.getOrders(userId(jwt));
+    public ApiSuccessResponse<OrderListResponse> getOrders(
+            @AuthenticationPrincipal Jwt jwt,
+            @PageableDefault(size = 20) Pageable pageable
+    ) {
+        return new ApiSuccessResponse<>(
+                "Orders fetched successfully",
+                queryService.getOrders(userId(jwt), pageable)
+        );
     }
 
     @PostMapping("/sync")

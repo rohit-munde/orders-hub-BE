@@ -5,6 +5,7 @@ import com.indiedev.orders_hub.user.User;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -64,5 +65,6 @@ public class Order extends BaseEntity {
             cascade = CascadeType.ALL,
             orphanRemoval = true
     )
+    @BatchSize(size = 50)
     private List<OrderItem> orderItems = new ArrayList<>();
 }

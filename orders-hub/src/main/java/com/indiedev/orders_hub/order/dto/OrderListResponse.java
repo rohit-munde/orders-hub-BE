@@ -1,6 +1,7 @@
 package com.indiedev.orders_hub.order.dto;
 
 import com.indiedev.orders_hub.order.OrderStatus;
+import com.indiedev.orders_hub.response.PageResponse;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -8,12 +9,8 @@ import java.util.List;
 
 public record OrderListResponse(
         Instant lastSyncedAt,
-        List<OrderResponse> orders
+        PageResponse<OrderResponse> orders
 ) {
-    public OrderListResponse {
-        orders = List.copyOf(orders);
-    }
-
     public record OrderResponse(
             long id,
             String merchantKey,

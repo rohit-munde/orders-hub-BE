@@ -2,17 +2,16 @@ package com.indiedev.orders_hub.order;
 
 import com.indiedev.orders_hub.user.User;
 import com.indiedev.orders_hub.user.UserRepository;
-import org.hibernate.Hibernate;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @DataJpaTest
 class OrderRepositoryOrderingTest {
@@ -24,7 +23,7 @@ class OrderRepositoryOrderingTest {
     private UserRepository userRepository;
 
     @Test
-    void returnsOnlyTheUsersOrdersNewestFirstWithNullPlacementLast() {
+    void pagesOnlyTheUsersOrdersNewestFirstWithNullPlacementLast() {
         User user = userRepository.saveAndFlush(user("shopper@example.com", "google-shopper"));
         User otherUser = userRepository.saveAndFlush(user("other@example.com", "google-other"));
         Instant tie = Instant.parse("2026-08-02T12:00:00Z");
@@ -35,22 +34,17 @@ class OrderRepositoryOrderingTest {
         Order newest = save(user, "ORDER-NEW", Instant.parse("2026-08-03T12:00:00Z"));
         Order unknownTime = save(user, "ORDER-UNKNOWN", null);
         save(otherUser, "ORDER-OTHER", Instant.parse("2026-08-04T12:00:00Z"));
-        addItem(newest);
-
-        List<Order> result = orderRepository.findAllForUserNewestFirst(user.getId());
+        Page<Order> firstPage = orderRepository.findPageForUser(user.getId(), PageRequest.of(0, 3));
+        Page<Order> secondPage = orderRepository.findPageForUser(user.getId(), PageRequest.of(1, 3));
 
         assertEquals(
-                List.of(
-                        newest.getId(),
-                        secondTie.getId(),
-                        firstTie.getId(),
-                        older.getId(),
-                        unknownTime.getId()
-                ),
-                result.stream().map(Order::getId).toList()
+                List.of(newest.getId(), secondTie.getId(), firstTie.getId()),
+                firstPage.getContent().stream().map(Order::getId).toList()
         );
-        assertEquals(1, result.getFirst().getOrderItems().size());
-        assertTrue(Hibernate.isInitialized(result.getFirst().getOrderItems()));
+        assertEquals(List.of(older.getId(), unknownTime.getId()),
+                secondPage.getContent().stream().map(Order::getId).toList());
+        assertEquals(5, firstPage.getTotalElements());
+        assertEquals(2, firstPage.getTotalPages());
     }
 
     private User user(String email, String googleId) {
@@ -71,13 +65,4 @@ class OrderRepositoryOrderingTest {
         return orderRepository.saveAndFlush(order);
     }
 
-    private void addItem(Order order) {
-        OrderItem item = new OrderItem();
-        item.setOrder(order);
-        item.setProductName("USB-C Cable");
-        item.setQuantity(1);
-        item.setPrice(new BigDecimal("499.00"));
-        order.getOrderItems().add(item);
-        orderRepository.saveAndFlush(order);
-    }
 }
