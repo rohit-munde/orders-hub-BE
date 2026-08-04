@@ -72,12 +72,54 @@ public class GoogleOAuthService {
         }
     }
 
+    public RefreshedToken refreshAccessToken(String refreshToken) {
+        if (!StringUtils.hasText(refreshToken)) {
+            throw new IllegalArgumentException("Google refresh token is required");
+        }
+
+        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+        form.add("grant_type", "refresh_token");
+        form.add("refresh_token", refreshToken);
+        form.add("client_id", properties.clientId());
+        form.add("client_secret", properties.clientSecret());
+
+        try {
+            TokenResponse response = restClient.post()
+                    .uri(TOKEN_ENDPOINT)
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(form)
+                    .retrieve()
+                    .body(TokenResponse.class);
+
+            if (response == null || !StringUtils.hasText(response.accessToken())) {
+                throw new GoogleApiException("Google OAuth response did not include an access token");
+            }
+
+            return new RefreshedToken(
+                    response.accessToken(),
+                    response.expiresIn(),
+                    response.scope()
+            );
+        } catch (GoogleApiException exception) {
+            throw exception;
+        } catch (RestClientException exception) {
+            throw new GoogleApiException("Google access token refresh failed", exception);
+        }
+    }
+
     public record Token(
             String accessToken,
             String refreshToken,
             long expiresIn,
             String scope,
             String idToken
+    ) {
+    }
+
+    public record RefreshedToken(
+            String accessToken,
+            long expiresIn,
+            String scope
     ) {
     }
 

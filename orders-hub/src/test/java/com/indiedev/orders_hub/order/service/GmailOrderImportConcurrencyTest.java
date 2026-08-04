@@ -149,6 +149,7 @@ class GmailOrderImportConcurrencyTest {
                 null,
                 null,
                 OrderStatus.SHIPPED,
+                null,
                 List.of()
         );
         GmailOrderImportService.ImportResult result = importService.importOrder(
@@ -172,6 +173,7 @@ class GmailOrderImportConcurrencyTest {
                 null,
                 null,
                 status,
+                null,
                 List.of()
         );
     }

@@ -14,8 +14,8 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class GmailOrderEmailCandidateFinder implements OrderEmailCandidateFinder {
 
-    private static final Pattern NEWER_THAN = Pattern.compile("[1-9]\\d*[dmy]");
     private static final Pattern SEARCH_VALUE = Pattern.compile("[A-Za-z0-9._@+-]+");
+    private static final int MAX_LOOKBACK_DAYS = 45;
     private static final int MAX_BATCH_SIZE = 50;
 
     private final GmailApiClient gmailApiClient;
@@ -32,9 +32,9 @@ public class GmailOrderEmailCandidateFinder implements OrderEmailCandidateFinder
     }
 
     private String buildQuery() {
-        String newerThan = properties.getNewerThan();
-        if (!StringUtils.hasText(newerThan) || !NEWER_THAN.matcher(newerThan).matches()) {
-            throw new IllegalArgumentException("Gmail newer-than must look like 30d, 6m, or 1y");
+        int lookbackDays = properties.getLookbackDays();
+        if (lookbackDays < 1 || lookbackDays > MAX_LOOKBACK_DAYS) {
+            throw new IllegalArgumentException("Gmail lookback days must be between 1 and 45");
         }
 
         List<String> rules = new ArrayList<>();
@@ -43,7 +43,7 @@ public class GmailOrderEmailCandidateFinder implements OrderEmailCandidateFinder
         if (rules.isEmpty()) {
             throw new IllegalArgumentException("At least one Gmail search rule is required");
         }
-        return "newer_than:" + newerThan + " {" + String.join(" ", rules) + "}";
+        return "newer_than:" + lookbackDays + "d {" + String.join(" ", rules) + "}";
     }
 
     private String safeValue(String value) {

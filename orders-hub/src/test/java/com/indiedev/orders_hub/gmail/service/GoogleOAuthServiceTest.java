@@ -90,6 +90,35 @@ class GoogleOAuthServiceTest {
     }
 
     @Test
+    void refreshesAnAccessTokenWithoutRequiringIdentityFields() {
+        MultiValueMap<String, String> expectedForm = new LinkedMultiValueMap<>();
+        expectedForm.add("grant_type", "refresh_token");
+        expectedForm.add("refresh_token", "stored-refresh-token");
+        expectedForm.add("client_id", "web-client-id");
+        expectedForm.add("client_secret", "web-client-secret");
+
+        server.expect(once(), requestTo(GoogleOAuthService.TOKEN_ENDPOINT))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(content().formData(expectedForm))
+                .andRespond(withSuccess("""
+                        {
+                          "access_token": "refreshed-access-token",
+                          "expires_in": 3600,
+                          "token_type": "Bearer"
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        GoogleOAuthService.RefreshedToken token = googleOAuthService.refreshAccessToken(
+                "stored-refresh-token"
+        );
+
+        assertEquals("refreshed-access-token", token.accessToken());
+        assertEquals(3600, token.expiresIn());
+        assertNull(token.scope());
+        server.verify();
+    }
+
+    @Test
     void rejectsResponseWithoutIdTokenBecauseTheGoogleIdentityCannotBeBound() {
         server.expect(requestTo(GoogleOAuthService.TOKEN_ENDPOINT))
                 .andRespond(withSuccess("""

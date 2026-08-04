@@ -1,6 +1,7 @@
 package com.indiedev.orders_hub.common;
 
 import com.indiedev.orders_hub.gmail.exception.ConnectedAccountConflictException;
+import com.indiedev.orders_hub.gmail.exception.GmailConnectionRequiredException;
 import com.indiedev.orders_hub.gmail.exception.GoogleApiException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -40,6 +41,14 @@ public class ApiExceptionHandler {
     @ExceptionHandler(ConnectedAccountConflictException.class)
     ResponseEntity<ApiError> handleConnectedAccountConflict(
             ConnectedAccountConflictException exception,
+            HttpServletRequest request
+    ) {
+        return error(HttpStatus.CONFLICT, exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(GmailConnectionRequiredException.class)
+    ResponseEntity<ApiError> handleGmailConnectionRequired(
+            GmailConnectionRequiredException exception,
             HttpServletRequest request
     ) {
         return error(HttpStatus.CONFLICT, exception.getMessage(), request);

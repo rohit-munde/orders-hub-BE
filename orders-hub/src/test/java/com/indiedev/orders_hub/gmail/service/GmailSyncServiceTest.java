@@ -36,7 +36,7 @@ class GmailSyncServiceTest {
         service = new GmailSyncService(finder, gmailApiClient, parser, importService);
         account = new ConnectedAccount();
         account.setId(11);
-        when(parser.version()).thenReturn(1);
+        when(parser.version()).thenReturn(2);
     }
 
     @Test
@@ -44,16 +44,16 @@ class GmailSyncServiceTest {
         when(finder.find("access-token")).thenReturn(new OrderEmailCandidateFinder.CandidateBatch(
                 "subject:order", List.of("failed", "saved", "skipped")
         ));
-        when(importService.shouldProcess(11, "saved", 1)).thenReturn(true);
-        when(importService.shouldProcess(11, "skipped", 1)).thenReturn(false);
-        when(importService.shouldProcess(11, "failed", 1)).thenReturn(true);
+        when(importService.shouldProcess(11, "saved", 2)).thenReturn(true);
+        when(importService.shouldProcess(11, "skipped", 2)).thenReturn(false);
+        when(importService.shouldProcess(11, "failed", 2)).thenReturn(true);
         GmailMessageContent content = new GmailMessageContent(
-                "saved", "Order shipped", "Amazon <orders@amazon.in>", "Order ID: ORDER-1"
+                "saved", "Order shipped", "Amazon <orders@amazon.in>", "Order ID: ORDER-1", null
         );
         GmailOrderPreview preview = candidate("saved", "ORDER-1");
         when(gmailApiClient.getFullMessage("access-token", "saved")).thenReturn(content);
         when(parser.parse(content)).thenReturn(preview);
-        when(importService.importOrder(account, "saved", preview, 1))
+        when(importService.importOrder(account, "saved", preview, 2))
                 .thenReturn(new GmailOrderImportService.ImportResult(SAVED, new Order()));
         when(gmailApiClient.getFullMessage("access-token", "failed"))
                 .thenThrow(new GoogleApiException("Unable to fetch Gmail message"));
@@ -67,7 +67,7 @@ class GmailSyncServiceTest {
         assertEquals(1, result.failedCount());
         assertEquals(List.of(preview), result.orders());
         verify(gmailApiClient, never()).getFullMessage("access-token", "skipped");
-        verify(importService).recordFailure(account, "failed", 1);
+        verify(importService).recordFailure(account, "failed", 2);
     }
 
     @Test
@@ -75,14 +75,14 @@ class GmailSyncServiceTest {
         when(finder.find("access-token")).thenReturn(new OrderEmailCandidateFinder.CandidateBatch(
                 "subject:order", List.of("ignored")
         ));
-        when(importService.shouldProcess(11, "ignored", 1)).thenReturn(true);
+        when(importService.shouldProcess(11, "ignored", 2)).thenReturn(true);
         GmailMessageContent content = new GmailMessageContent(
-                "ignored", "Sale", "Amazon <offers@amazon.in>", "Save on your next purchase"
+                "ignored", "Sale", "Amazon <offers@amazon.in>", "Save on your next purchase", null
         );
         GmailOrderPreview preview = candidate("ignored", null);
         when(gmailApiClient.getFullMessage("access-token", "ignored")).thenReturn(content);
         when(parser.parse(content)).thenReturn(preview);
-        when(importService.importOrder(account, "ignored", preview, 1))
+        when(importService.importOrder(account, "ignored", preview, 2))
                 .thenReturn(new GmailOrderImportService.ImportResult(IGNORED, null));
 
         GmailSyncPreview result = service.sync(account, "access-token");
@@ -98,16 +98,16 @@ class GmailSyncServiceTest {
         when(finder.find("access-token")).thenReturn(new OrderEmailCandidateFinder.CandidateBatch(
                 "subject:order", List.of("lookup-failed", "saved")
         ));
-        when(importService.shouldProcess(11, "lookup-failed", 1))
+        when(importService.shouldProcess(11, "lookup-failed", 2))
                 .thenThrow(new IllegalStateException("database unavailable"));
-        when(importService.shouldProcess(11, "saved", 1)).thenReturn(true);
+        when(importService.shouldProcess(11, "saved", 2)).thenReturn(true);
         GmailMessageContent content = new GmailMessageContent(
-                "saved", "Order shipped", "Amazon <orders@amazon.in>", "Order ID: ORDER-1"
+                "saved", "Order shipped", "Amazon <orders@amazon.in>", "Order ID: ORDER-1", null
         );
         GmailOrderPreview preview = candidate("saved", "ORDER-1");
         when(gmailApiClient.getFullMessage("access-token", "saved")).thenReturn(content);
         when(parser.parse(content)).thenReturn(preview);
-        when(importService.importOrder(account, "saved", preview, 1))
+        when(importService.importOrder(account, "saved", preview, 2))
                 .thenReturn(new GmailOrderImportService.ImportResult(SAVED, new Order()));
 
         GmailSyncPreview result = service.sync(account, "access-token");
@@ -117,7 +117,7 @@ class GmailSyncServiceTest {
         assertEquals(1, result.failedCount());
         assertEquals(List.of(preview), result.orders());
         verify(gmailApiClient, never()).getFullMessage("access-token", "lookup-failed");
-        verify(importService).recordFailure(account, "lookup-failed", 1);
+        verify(importService).recordFailure(account, "lookup-failed", 2);
     }
 
     private GmailOrderPreview candidate(String gmailMessageId, String orderNo) {
@@ -131,6 +131,7 @@ class GmailSyncServiceTest {
                 null,
                 null,
                 OrderStatus.SHIPPED,
+                null,
                 List.of()
         );
     }

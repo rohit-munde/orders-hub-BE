@@ -6,6 +6,7 @@ import com.indiedev.orders_hub.order.OrderStatus;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 
@@ -17,6 +18,7 @@ class GmailOrderParserTest {
 
     @Test
     void extractsOrderFieldsFromDecodedEmailContent() {
+        Instant receivedAt = Instant.parse("2026-08-02T12:30:00Z");
         GmailMessageContent message = new GmailMessageContent(
                 "message-1",
                 "Your order shipped",
@@ -27,7 +29,8 @@ class GmailOrderParserTest {
                         Payment successful
                         Delivery OTP: 482731
                         Your order has shipped
-                        """
+                        """,
+                receivedAt
         );
 
         GmailOrderPreview preview = parser.parse(message);
@@ -41,8 +44,9 @@ class GmailOrderParserTest {
         assertEquals(Boolean.TRUE, preview.paid());
         assertEquals("482731", preview.otp());
         assertEquals(OrderStatus.SHIPPED, preview.status());
+        assertEquals(receivedAt, preview.placedAt());
         assertEquals(List.of(), preview.orderItems());
-        assertEquals(1, parser.version());
+        assertEquals(2, parser.version());
     }
 
     @Test
@@ -51,7 +55,8 @@ class GmailOrderParserTest {
                 "message-2",
                 "Your receipt",
                 "orders@shop.example",
-                "Thanks for shopping with us."
+                "Thanks for shopping with us.",
+                null
         );
 
         GmailOrderPreview preview = parser.parse(message);
@@ -73,7 +78,8 @@ class GmailOrderParserTest {
                 "message-3",
                 "Payment update",
                 "Store <orders@store.example>",
-                "Payment status: not paid"
+                "Payment status: not paid",
+                null
         );
 
         GmailOrderPreview preview = parser.parse(message);
@@ -87,7 +93,8 @@ class GmailOrderParserTest {
                 "message-4",
                 "Your order was delivered",
                 "Store <orders@store.example>",
-                "Shipped yesterday\nOut for delivery this morning\nDelivered today"
+                "Shipped yesterday\nOut for delivery this morning\nDelivered today",
+                null
         );
 
         GmailOrderPreview preview = parser.parse(message);
@@ -98,7 +105,7 @@ class GmailOrderParserTest {
     @Test
     void leavesMerchantKeyNullWhenSenderHasNoEmailDomain() {
         GmailMessageContent message = new GmailMessageContent(
-                "message-5", "Order confirmed", "Amazon", "Order ID: ORDER-500"
+                "message-5", "Order confirmed", "Amazon", "Order ID: ORDER-500", null
         );
 
         GmailOrderPreview preview = parser.parse(message);
@@ -115,7 +122,8 @@ class GmailOrderParserTest {
                     "message-locale",
                     "Order confirmed",
                     "Orders <orders@SHOPPING.IN>",
-                    "Order ID: ABC-123"
+                    "Order ID: ABC-123",
+                    null
             ));
 
             assertEquals("shopping.in", preview.merchantKey());

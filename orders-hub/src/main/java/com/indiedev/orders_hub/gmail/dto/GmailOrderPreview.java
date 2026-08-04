@@ -3,6 +3,7 @@ package com.indiedev.orders_hub.gmail.dto;
 import com.indiedev.orders_hub.order.OrderStatus;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 
 public record GmailOrderPreview(
@@ -15,6 +16,7 @@ public record GmailOrderPreview(
         Boolean paid,
         String otp,
         OrderStatus status,
+        Instant placedAt,
         List<OrderItemPreview> orderItems
 ) {
     public GmailOrderPreview {

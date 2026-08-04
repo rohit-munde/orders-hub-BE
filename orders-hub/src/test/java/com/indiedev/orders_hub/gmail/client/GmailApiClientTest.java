@@ -11,6 +11,7 @@ import org.springframework.web.client.RestClient;
 
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Base64;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -86,6 +87,7 @@ class GmailApiClientTest {
                 .andRespond(withSuccess("""
                         {
                           "id":"message-1",
+                          "internalDate":"1785688200000",
                           "payload":{
                             "mimeType":"multipart/alternative",
                             "headers":[
@@ -108,6 +110,7 @@ class GmailApiClientTest {
         assertEquals("Your order shipped", message.subject());
         assertEquals("Amazon <orders@amazon.in>", message.from());
         assertEquals(plainBody, message.body());
+        assertEquals(Instant.ofEpochMilli(1785688200000L), message.receivedAt());
         server.verify();
     }
 
@@ -121,6 +124,7 @@ class GmailApiClientTest {
                 .andRespond(withSuccess("""
                         {
                           "id":"message-2",
+                          "internalDate":"not-a-timestamp",
                           "payload":{
                             "mimeType":"text/html",
                             "headers":[],
@@ -134,6 +138,7 @@ class GmailApiClientTest {
         assertTrue(message.body().contains("Order number: ORDER-456"));
         assertTrue(message.body().contains("Total: INR 299.00"));
         assertFalse(message.body().contains("<p>"));
+        assertNull(message.receivedAt());
         server.verify();
     }
 

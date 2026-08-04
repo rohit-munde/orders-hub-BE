@@ -61,6 +61,47 @@ class ConnectedAccountPersistenceServiceTest {
         verify(repository, never()).save(any());
     }
 
+    @Test
+    void storesARefreshedAccessTokenWithoutErasingScopeOrRefreshToken() {
+        ConnectedAccountRepository repository = mock(ConnectedAccountRepository.class);
+        TokenEncryptionService encryption = mock(TokenEncryptionService.class);
+        ConnectedAccountPersistenceService service = new ConnectedAccountPersistenceService(repository, encryption);
+        ConnectedAccount account = account(user(1), "shopper@gmail.com");
+        account.setId(9);
+        account.setEncryptedRefreshToken("encrypted-refresh-token");
+        account.setGrantedScopes("existing-gmail-scope");
+        when(repository.findById(9L)).thenReturn(Optional.of(account));
+        when(encryption.encrypt("refreshed-access-token")).thenReturn("encrypted-new-access-token");
+        Instant refreshedAt = Instant.parse("2026-08-03T12:00:00Z");
+
+        ConnectedAccount updated = service.storeRefreshedAccessToken(
+                9,
+                new GoogleOAuthService.RefreshedToken("refreshed-access-token", 3600, null),
+                refreshedAt
+        );
+
+        assertEquals("encrypted-new-access-token", updated.getEncryptedAccessToken());
+        assertEquals(refreshedAt.plusSeconds(3600), updated.getAccessTokenExpiresAt());
+        assertEquals("encrypted-refresh-token", updated.getEncryptedRefreshToken());
+        assertEquals("existing-gmail-scope", updated.getGrantedScopes());
+    }
+
+    @Test
+    void marksAnAccountAsSyncingBeforeRepeatSyncWorkStarts() {
+        ConnectedAccountRepository repository = mock(ConnectedAccountRepository.class);
+        ConnectedAccount account = account(user(1), "shopper@gmail.com");
+        account.setId(9);
+        account.setSyncStatus(ConnectedAccountSyncStatus.SYNCED);
+        when(repository.findById(9L)).thenReturn(Optional.of(account));
+        ConnectedAccountPersistenceService service = new ConnectedAccountPersistenceService(
+                repository, mock(TokenEncryptionService.class)
+        );
+
+        service.markSyncStarted(9);
+
+        assertEquals(ConnectedAccountSyncStatus.SYNCING, account.getSyncStatus());
+    }
+
     private User user(long id) {
         User user = new User();
         user.setId(id);

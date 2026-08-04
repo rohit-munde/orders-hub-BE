@@ -32,7 +32,7 @@ public class GmailOrderParser {
     private static final Pattern PAID = Pattern.compile(
             "(?i)\\bpaid\\b|\\bpayment\\s+(?:successful|received|completed)\\b"
     );
-    private static final int PARSER_VERSION = 1;
+    private static final int PARSER_VERSION = 2;
 
     public GmailOrderPreview parse(GmailMessageContent message) {
         String body = valueOrEmpty(message.body());
@@ -49,6 +49,7 @@ public class GmailOrderParser {
                 paymentState(searchableText),
                 extract(OTP, body),
                 status(searchableText),
+                message.receivedAt(),
                 List.of()
         );
     }

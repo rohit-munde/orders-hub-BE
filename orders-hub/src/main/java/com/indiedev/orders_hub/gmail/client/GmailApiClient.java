@@ -9,6 +9,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
@@ -89,7 +90,8 @@ public class GmailApiClient {
                     response.id(),
                     headerValue(headers, "Subject"),
                     headerValue(headers, "From"),
-                    readableBody(response.payload())
+                    readableBody(response.payload()),
+                    receivedAt(response.internalDate())
             );
         } catch (GoogleApiException exception) {
             throw exception;
@@ -104,6 +106,17 @@ public class GmailApiClient {
                 .map(MessageHeader::value)
                 .findFirst()
                 .orElse(null);
+    }
+
+    private Instant receivedAt(String internalDate) {
+        if (!StringUtils.hasText(internalDate)) {
+            return null;
+        }
+        try {
+            return Instant.ofEpochMilli(Long.parseLong(internalDate));
+        } catch (NumberFormatException exception) {
+            return null;
+        }
     }
 
     private String readableBody(MessagePayload payload) {
@@ -172,7 +185,7 @@ public class GmailApiClient {
     private record MessageReference(String id) {
     }
 
-    private record MessageResponse(String id, MessagePayload payload) {
+    private record MessageResponse(String id, String internalDate, MessagePayload payload) {
     }
 
     private record MessagePayload(

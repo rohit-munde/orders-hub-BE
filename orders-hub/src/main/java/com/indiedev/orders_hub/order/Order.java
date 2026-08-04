@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -50,6 +51,9 @@ public class Order extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
     private OrderStatus status;
+
+    @Column(name = "placed_at")
+    private Instant placedAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false, foreignKey = @ForeignKey(name = "fk_connected_order"))

@@ -55,6 +55,29 @@ public class ConnectedAccountPersistenceService {
     }
 
     @Transactional
+    public void markSyncStarted(long accountId) {
+        ConnectedAccount account = connectedAccountRepository.findById(accountId)
+                .orElseThrow(() -> new IllegalStateException("Connected account disappeared before sync"));
+        account.setSyncStatus(ConnectedAccountSyncStatus.SYNCING);
+    }
+
+    @Transactional
+    public ConnectedAccount storeRefreshedAccessToken(
+            long accountId,
+            GoogleOAuthService.RefreshedToken token,
+            Instant refreshedAt
+    ) {
+        ConnectedAccount account = connectedAccountRepository.findById(accountId)
+                .orElseThrow(() -> new IllegalStateException("Connected account disappeared during token refresh"));
+        account.setEncryptedAccessToken(tokenEncryptionService.encrypt(token.accessToken()));
+        account.setAccessTokenExpiresAt(refreshedAt.plusSeconds(token.expiresIn()));
+        if (StringUtils.hasText(token.scope())) {
+            account.setGrantedScopes(token.scope());
+        }
+        return account;
+    }
+
+    @Transactional
     public void markSyncFailed(long accountId) {
         connectedAccountRepository.findById(accountId).ifPresent(account ->
                 account.setSyncStatus(ConnectedAccountSyncStatus.FAILED)

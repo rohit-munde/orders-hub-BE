@@ -102,6 +102,10 @@ public class GmailOrderImportService {
     public void recordFailure(ConnectedAccount account, String gmailMessageId, int parserVersion) {
         lockUser(account);
         Optional<OrderEmailSource> existingSource = findSource(account, gmailMessageId);
+        if (existingSource.isPresent()
+                && existingSource.get().getProcessingStatus() == OrderEmailProcessingStatus.IMPORTED) {
+            return;
+        }
         if (existingSource.isPresent() && !isRetryable(existingSource.get(), parserVersion)) {
             return;
         }
@@ -130,8 +134,7 @@ public class GmailOrderImportService {
 
     private boolean isRetryable(OrderEmailSource source, int parserVersion) {
         return source.getProcessingStatus() == OrderEmailProcessingStatus.FAILED
-                || (source.getProcessingStatus() == OrderEmailProcessingStatus.IGNORED
-                    && source.getParserVersion() < parserVersion);
+                || source.getParserVersion() < parserVersion;
     }
 
     private boolean hasIdentity(GmailOrderPreview candidate) {
@@ -164,6 +167,10 @@ public class GmailOrderImportService {
         }
         if (candidate.status() != null && candidate.status().ordinal() > order.getStatus().ordinal()) {
             order.setStatus(candidate.status());
+        }
+        if (candidate.placedAt() != null
+                && (order.getPlacedAt() == null || candidate.placedAt().isBefore(order.getPlacedAt()))) {
+            order.setPlacedAt(candidate.placedAt());
         }
         if (order.getOrderItems().isEmpty()) {
             candidate.orderItems().stream()
