@@ -1,6 +1,6 @@
 package com.indiedev.orders_hub.order.controller;
 
-import com.indiedev.orders_hub.common.ApiExceptionHandler;
+import com.indiedev.orders_hub.GlobalExceptionHandling;
 import com.indiedev.orders_hub.config.SecurityConfig;
 import com.indiedev.orders_hub.order.OrderStatus;
 import com.indiedev.orders_hub.order.dto.OrderListResponse;
@@ -30,7 +30,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         controllers = OrderController.class,
         properties = "app.jwt.secret=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
 )
-@Import({SecurityConfig.class, ApiExceptionHandler.class})
+@Import({SecurityConfig.class, GlobalExceptionHandling.class})
 class OrderControllerTest {
 
     @Autowired

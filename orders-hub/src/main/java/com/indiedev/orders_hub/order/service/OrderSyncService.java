@@ -5,7 +5,7 @@ import com.indiedev.orders_hub.connectedaccount.ConnectedAccountPersistenceServi
 import com.indiedev.orders_hub.connectedaccount.ConnectedAccountProvider;
 import com.indiedev.orders_hub.connectedaccount.ConnectedAccountRepository;
 import com.indiedev.orders_hub.gmail.dto.GmailSyncPreview;
-import com.indiedev.orders_hub.gmail.exception.GmailConnectionRequiredException;
+import com.indiedev.orders_hub.exception.GmailConnectionRequiredException;
 import com.indiedev.orders_hub.gmail.service.GmailSyncService;
 import com.indiedev.orders_hub.gmail.service.GoogleAccessTokenService;
 import com.indiedev.orders_hub.order.dto.OrderSyncResponse;

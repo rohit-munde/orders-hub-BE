@@ -1,7 +1,7 @@
 package com.indiedev.orders_hub.gmail.client;
 
 import com.indiedev.orders_hub.gmail.dto.GmailMessageContent;
-import com.indiedev.orders_hub.gmail.exception.GoogleApiException;
+import com.indiedev.orders_hub.exception.GoogleApiException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;

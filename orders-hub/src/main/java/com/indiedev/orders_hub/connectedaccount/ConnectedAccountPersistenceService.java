@@ -1,6 +1,6 @@
 package com.indiedev.orders_hub.connectedaccount;
 
-import com.indiedev.orders_hub.gmail.exception.ConnectedAccountConflictException;
+import com.indiedev.orders_hub.exception.ConnectedAccountConflictException;
 import com.indiedev.orders_hub.gmail.service.GoogleOAuthService;
 import com.indiedev.orders_hub.security.token.TokenEncryptionService;
 import com.indiedev.orders_hub.user.User;

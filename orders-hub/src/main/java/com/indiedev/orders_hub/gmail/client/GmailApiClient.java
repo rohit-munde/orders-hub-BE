@@ -1,7 +1,7 @@
 package com.indiedev.orders_hub.gmail.client;
 
 import com.indiedev.orders_hub.gmail.dto.GmailMessageContent;
-import com.indiedev.orders_hub.gmail.exception.GoogleApiException;
+import com.indiedev.orders_hub.exception.GoogleApiException;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.util.HtmlUtils;

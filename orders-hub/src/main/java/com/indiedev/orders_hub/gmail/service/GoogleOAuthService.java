@@ -2,7 +2,7 @@ package com.indiedev.orders_hub.gmail.service;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.indiedev.orders_hub.gmail.config.GoogleOAuthProperties;
-import com.indiedev.orders_hub.gmail.exception.GoogleApiException;
+import com.indiedev.orders_hub.exception.GoogleApiException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
