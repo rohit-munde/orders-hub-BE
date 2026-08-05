@@ -76,6 +76,89 @@ class GmailApiClientTest {
     }
 
     @Test
+    void followsPageTokensAndStopsAtTheUniqueIdCap() {
+        server.expect(once(), request -> {
+                    String query = URLDecoder.decode(request.getURI().getRawQuery(), StandardCharsets.UTF_8);
+                    assertTrue(query.contains("maxResults=3"));
+                    assertFalse(query.contains("pageToken="));
+                })
+                .andRespond(withSuccess("""
+                        {"messages":[{"id":"message-1"},{"id":"message-2"}],
+                         "nextPageToken":"page-2"}
+                        """, MediaType.APPLICATION_JSON));
+        server.expect(once(), request -> {
+                    String query = URLDecoder.decode(request.getURI().getRawQuery(), StandardCharsets.UTF_8);
+                    assertTrue(query.contains("maxResults=1"));
+                    assertTrue(query.contains("pageToken=page-2"));
+                })
+                .andRespond(withSuccess("""
+                        {"messages":[{"id":"message-3"}],
+                         "nextPageToken":"page-3"}
+                        """, MediaType.APPLICATION_JSON));
+
+        assertEquals(
+                java.util.List.of("message-1", "message-2", "message-3"),
+                client.findMessageIds("access-token", "subject:order", 3)
+        );
+        server.verify();
+    }
+
+    @Test
+    void deduplicatesIdsAcrossGmailPagesWithoutChangingOrder() {
+        server.expect(once(), request -> assertFalse(request.getURI().getQuery().contains("pageToken=")))
+                .andRespond(withSuccess(
+                        "{\"messages\":[{\"id\":\"message-1\"}],\"nextPageToken\":\"page-2\"}",
+                        MediaType.APPLICATION_JSON
+                ));
+        server.expect(once(), request -> assertTrue(request.getURI().getQuery().contains("pageToken=page-2")))
+                .andRespond(withSuccess(
+                        "{\"messages\":[{\"id\":\"message-1\"},{\"id\":\"message-2\"}]}",
+                        MediaType.APPLICATION_JSON
+                ));
+
+        assertEquals(
+                java.util.List.of("message-1", "message-2"),
+                client.findMessageIds("access-token", "subject:order", 10)
+        );
+        server.verify();
+    }
+
+    @Test
+    void stopsOnAnEmptyPageEvenWhenGmailReturnsAnotherToken() {
+        server.expect(once(), request -> assertFalse(request.getURI().getQuery().contains("pageToken=")))
+                .andRespond(withSuccess(
+                        "{\"messages\":[],\"nextPageToken\":\"unexpected-page\"}",
+                        MediaType.APPLICATION_JSON
+                ));
+
+        assertEquals(
+                java.util.List.of(),
+                client.findMessageIds("access-token", "subject:order", 10)
+        );
+        server.verify();
+    }
+
+    @Test
+    void stopsWhenGmailRepeatsAPageToken() {
+        server.expect(once(), request -> assertFalse(request.getURI().getQuery().contains("pageToken=")))
+                .andRespond(withSuccess(
+                        "{\"messages\":[{\"id\":\"message-1\"}],\"nextPageToken\":\"same-token\"}",
+                        MediaType.APPLICATION_JSON
+                ));
+        server.expect(once(), request -> assertTrue(request.getURI().getQuery().contains("pageToken=same-token")))
+                .andRespond(withSuccess(
+                        "{\"messages\":[{\"id\":\"message-2\"}],\"nextPageToken\":\"same-token\"}",
+                        MediaType.APPLICATION_JSON
+                ));
+
+        assertEquals(
+                java.util.List.of("message-1", "message-2"),
+                client.findMessageIds("access-token", "subject:order", 10)
+        );
+        server.verify();
+    }
+
+    @Test
     void fetchesFullMessageAndPrefersNestedPlainTextBody() {
         String plainBody = "Order number: ORDER-123";
         String htmlBody = "<p>Wrong HTML fallback</p>";

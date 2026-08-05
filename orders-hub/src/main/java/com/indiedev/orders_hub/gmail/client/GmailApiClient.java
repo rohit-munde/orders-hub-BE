@@ -12,7 +12,11 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 @Component
 public class GmailApiClient {
@@ -45,26 +49,62 @@ public class GmailApiClient {
 
     public List<String> findMessageIds(String accessToken, String query, int maxResults) {
         try {
-            MessageListResponse response = restClient.get()
-                    .uri(uriBuilder -> uriBuilder
-                            .path("/gmail/v1/users/me/messages")
-                            .queryParam("maxResults", maxResults)
-                            .queryParam("q", "{gmailQuery}")
-                            .build(query))
-                    .headers(headers -> headers.setBearerAuth(accessToken))
-                    .retrieve()
-                    .body(MessageListResponse.class);
+            LinkedHashSet<String> ids = new LinkedHashSet<>();
+            Set<String> seenPageTokens = new HashSet<>();
+            String pageToken = null;
 
-            if (response == null || response.messages() == null || response.messages().isEmpty()) {
-                return List.of();
+            while (ids.size() < maxResults) {
+                int remaining = maxResults - ids.size();
+                MessageListResponse response = findMessagePage(
+                        accessToken,
+                        query,
+                        remaining,
+                        pageToken
+                );
+                if (response == null || response.messages() == null || response.messages().isEmpty()) {
+                    break;
+                }
+                for (MessageReference message : response.messages()) {
+                    if (message != null && StringUtils.hasText(message.id())) {
+                        ids.add(message.id());
+                        if (ids.size() == maxResults) {
+                            break;
+                        }
+                    }
+                }
+                String nextPageToken = response.nextPageToken();
+                if (!StringUtils.hasText(nextPageToken) || !seenPageTokens.add(nextPageToken)) {
+                    break;
+                }
+                pageToken = nextPageToken;
             }
-            return response.messages().stream()
-                    .map(MessageReference::id)
-                    .filter(StringUtils::hasText)
-                    .toList();
+            return List.copyOf(ids);
         } catch (RestClientException exception) {
             throw new GoogleApiException("Unable to search Gmail messages", exception);
         }
+    }
+
+    private MessageListResponse findMessagePage(
+            String accessToken,
+            String query,
+            int maxResults,
+            String pageToken
+    ) {
+        return restClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/gmail/v1/users/me/messages")
+                        .queryParam("maxResults", maxResults)
+                        .queryParam("q", "{gmailQuery}")
+                        .queryParamIfPresent(
+                                "pageToken",
+                                StringUtils.hasText(pageToken)
+                                        ? Optional.of(pageToken)
+                                        : Optional.empty()
+                        )
+                        .build(query))
+                .headers(headers -> headers.setBearerAuth(accessToken))
+                .retrieve()
+                .body(MessageListResponse.class);
     }
 
     public GmailMessageContent getFullMessage(String accessToken, String gmailMessageId) {
@@ -179,7 +219,7 @@ public class GmailApiClient {
     private record ProfileResponse(String emailAddress) {
     }
 
-    private record MessageListResponse(List<MessageReference> messages) {
+    private record MessageListResponse(List<MessageReference> messages, String nextPageToken) {
     }
 
     private record MessageReference(String id) {
