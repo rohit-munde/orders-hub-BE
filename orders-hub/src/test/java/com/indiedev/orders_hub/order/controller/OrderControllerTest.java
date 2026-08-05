@@ -140,7 +140,7 @@ class OrderControllerTest {
         when(syncService.sync(7, true)).thenReturn(new OrderSyncResponse(
                 OrderSyncResponse.Outcome.COMPLETED,
                 Instant.parse("2026-08-03T12:00:00Z"),
-                6, 2, 1, 1, 0
+                4, 2, 1, 1, 0
         ));
 
         mockMvc.perform(post("/api/v1/orders/sync?force=true")
@@ -148,7 +148,7 @@ class OrderControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.payload.outcome").value("COMPLETED"))
-                .andExpect(jsonPath("$.payload.candidateCount").value(6));
+                .andExpect(jsonPath("$.payload.candidateCount").value(4));
 
         verify(syncService).sync(7, true);
     }
