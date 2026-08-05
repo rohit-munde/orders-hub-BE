@@ -128,7 +128,9 @@ class OrderControllerTest {
         mockMvc.perform(post("/api/v1/orders/sync")
                         .with(jwt().jwt(token -> token.claim("userId", 7L))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.outcome").value("COOLDOWN"));
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.message").value("Orders synchronized successfully"))
+                .andExpect(jsonPath("$.payload.outcome").value("COOLDOWN"));
 
         verify(syncService).sync(7, false);
     }
@@ -138,14 +140,15 @@ class OrderControllerTest {
         when(syncService.sync(7, true)).thenReturn(new OrderSyncResponse(
                 OrderSyncResponse.Outcome.COMPLETED,
                 Instant.parse("2026-08-03T12:00:00Z"),
-                4, 2, 1, 1, 0
+                6, 2, 1, 1, 0
         ));
 
         mockMvc.perform(post("/api/v1/orders/sync?force=true")
                         .with(jwt().jwt(token -> token.claim("userId", 7L))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.outcome").value("COMPLETED"))
-                .andExpect(jsonPath("$.savedCount").value(2));
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.payload.outcome").value("COMPLETED"))
+                .andExpect(jsonPath("$.payload.candidateCount").value(6));
 
         verify(syncService).sync(7, true);
     }

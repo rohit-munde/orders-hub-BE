@@ -36,11 +36,14 @@ public class OrderController {
     }
 
     @PostMapping("/sync")
-    public OrderSyncResponse sync(
+    public ApiSuccessResponse<OrderSyncResponse> sync(
             @AuthenticationPrincipal Jwt jwt,
             @RequestParam(defaultValue = "false") boolean force
     ) {
-        return syncService.sync(userId(jwt), force);
+        return new ApiSuccessResponse<>(
+                "Orders synchronized successfully",
+                syncService.sync(userId(jwt), force)
+        );
     }
 
     private long userId(Jwt jwt) {
