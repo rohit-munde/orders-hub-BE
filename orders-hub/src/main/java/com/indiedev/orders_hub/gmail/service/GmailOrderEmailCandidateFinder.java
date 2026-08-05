@@ -16,7 +16,7 @@ public class GmailOrderEmailCandidateFinder implements OrderEmailCandidateFinder
 
     private static final Pattern SEARCH_VALUE = Pattern.compile("[A-Za-z0-9._@+-]+");
     private static final int MAX_LOOKBACK_DAYS = 45;
-    private static final int MAX_BATCH_SIZE = 50;
+    private static final int MAX_BATCH_SIZE = 100;
 
     private final GmailApiClient gmailApiClient;
     private final GmailSearchProperties properties;

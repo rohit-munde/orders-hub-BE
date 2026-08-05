@@ -22,8 +22,8 @@ public class GmailSearchProperties {
     private int lookbackDays = 45;
 
     @Min(1)
-    @Max(50)
-    private int batchSize = 50;
+    @Max(100)
+    private int batchSize = 100;
     private List<String> subjectKeywords = List.of(
             "order", "ordered", "shipped", "delivered", "dispatched", "invoice", "receipt"
     );

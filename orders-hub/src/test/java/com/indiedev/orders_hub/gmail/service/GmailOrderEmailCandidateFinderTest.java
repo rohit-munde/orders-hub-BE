@@ -20,7 +20,7 @@ class GmailOrderEmailCandidateFinderTest {
         properties.setSenderDomains(List.of("amazon.in"));
         GmailOrderEmailCandidateFinder finder = new GmailOrderEmailCandidateFinder(client, properties);
         String expectedQuery = "newer_than:45d {subject:order subject:receipt from:amazon.in}";
-        when(client.findMessageIds("access-token", expectedQuery, 50))
+        when(client.findMessageIds("access-token", expectedQuery, 100))
                 .thenReturn(List.of("message-1", "message-2"));
 
         OrderEmailCandidateFinder.CandidateBatch batch = finder.find("access-token");
@@ -30,15 +30,26 @@ class GmailOrderEmailCandidateFinderTest {
     }
 
     @Test
-    void capsConfiguredBatchAtFiftyMessages() {
+    void defaultsToOneHundredCandidates() {
         GmailApiClient client = mock(GmailApiClient.class);
         GmailSearchProperties properties = new GmailSearchProperties();
-        properties.setBatchSize(100);
-        when(client.findMessageIds(anyString(), anyString(), eq(50))).thenReturn(List.of());
+        when(client.findMessageIds(anyString(), anyString(), eq(100))).thenReturn(List.of());
 
         new GmailOrderEmailCandidateFinder(client, properties).find("access-token");
 
-        verify(client).findMessageIds(eq("access-token"), anyString(), eq(50));
+        verify(client).findMessageIds(eq("access-token"), anyString(), eq(100));
+    }
+
+    @Test
+    void capsConfiguredBatchAtOneHundredMessages() {
+        GmailApiClient client = mock(GmailApiClient.class);
+        GmailSearchProperties properties = new GmailSearchProperties();
+        properties.setBatchSize(500);
+        when(client.findMessageIds(anyString(), anyString(), eq(100))).thenReturn(List.of());
+
+        new GmailOrderEmailCandidateFinder(client, properties).find("access-token");
+
+        verify(client).findMessageIds(eq("access-token"), anyString(), eq(100));
     }
 
     @Test
@@ -69,7 +80,7 @@ class GmailOrderEmailCandidateFinderTest {
                 "newer_than:45d {subject:order subject:ordered subject:shipped subject:delivered "
                         + "subject:dispatched subject:invoice subject:receipt from:amazon.in "
                         + "from:flipkart.com from:myntra.com from:meesho.com}",
-                50
+                100
         );
     }
 
