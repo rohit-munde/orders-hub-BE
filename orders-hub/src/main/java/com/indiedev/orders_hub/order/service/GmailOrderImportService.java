@@ -165,12 +165,19 @@ public class GmailOrderImportService {
         if (candidate.paid() != null && (order.getPaid() == null || candidate.paid())) {
             order.setPaid(candidate.paid());
         }
-        if (candidate.status() != null && candidate.status().ordinal() > order.getStatus().ordinal()) {
-            order.setStatus(candidate.status());
-        }
-        if (candidate.placedAt() != null
-                && (order.getPlacedAt() == null || candidate.placedAt().isBefore(order.getPlacedAt()))) {
-            order.setPlacedAt(candidate.placedAt());
+        if (candidate.placedAt() != null) {
+            if (order.getPlacedAt() == null || candidate.placedAt().isAfter(order.getPlacedAt())) {
+                order.setPlacedAt(candidate.placedAt());
+                if (candidate.status() != null && candidate.status() != OrderStatus.UNKNOWN) {
+                    order.setStatus(candidate.status());
+                }
+            } else if (order.getStatus() == OrderStatus.UNKNOWN && candidate.status() != null) {
+                order.setStatus(candidate.status());
+            }
+        } else {
+            if (candidate.status() != null && candidate.status().ordinal() > order.getStatus().ordinal()) {
+                order.setStatus(candidate.status());
+            }
         }
         if (order.getOrderItems().isEmpty()) {
             candidate.orderItems().stream()

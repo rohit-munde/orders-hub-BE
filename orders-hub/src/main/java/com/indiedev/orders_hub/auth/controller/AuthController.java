@@ -2,6 +2,7 @@ package com.indiedev.orders_hub.auth.controller;
 
 import com.indiedev.orders_hub.auth.response.AuthResponse;
 import com.indiedev.orders_hub.auth.service.AuthService;
+import com.indiedev.orders_hub.response.ApiSuccessResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
@@ -18,10 +19,11 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/google")
-    public AuthResponse loginWithGoogle(
+    public ApiSuccessResponse<AuthResponse> loginWithGoogle(
             @Valid @RequestBody GoogleLoginRequest request
     ) {
-        return authService.loginWithGoogle(request.idToken(), request.serverAuthCode());
+        AuthResponse response = authService.loginWithGoogle(request.idToken(), request.serverAuthCode());
+        return new ApiSuccessResponse<>("Authenticated successfully", response);
     }
 
     public record GoogleLoginRequest(

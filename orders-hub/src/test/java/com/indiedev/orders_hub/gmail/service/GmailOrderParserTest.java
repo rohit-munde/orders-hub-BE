@@ -46,7 +46,7 @@ class GmailOrderParserTest {
         assertEquals(OrderStatus.SHIPPED, preview.status());
         assertEquals(receivedAt, preview.placedAt());
         assertEquals(List.of(), preview.orderItems());
-        assertEquals(2, parser.version());
+        assertEquals(4, parser.version());
     }
 
     @Test
@@ -130,5 +130,30 @@ class GmailOrderParserTest {
         } finally {
             Locale.setDefault(originalLocale);
         }
+    }
+
+    @Test
+    void parsesRefundEmailToRefundedStatus() {
+        GmailMessageContent message = new GmailMessageContent(
+                "message-refund",
+                "Your refund for essart Faux Leather Luxury....",
+                "Amazon <return@amazon.in>",
+                """
+                        Your refund was issued.
+                        The financial institution is processing your refund.
+                        ₹1,999.00 will be credited to the original payment method by Aug 15.
+                        Order #407-3385584-8184336
+                        Total refund: ₹1,999.00
+                        """,
+                Instant.parse("2026-08-09T12:08:00Z")
+        );
+
+        GmailOrderPreview preview = parser.parse(message);
+
+        assertEquals(OrderStatus.REFUNDED, preview.status());
+        assertEquals("amazon.in", preview.merchantKey());
+        assertEquals("407-3385584-8184336", preview.orderNo());
+        assertEquals(new BigDecimal("1999.00"), preview.billAmount());
+        assertEquals("INR", preview.currency());
     }
 }

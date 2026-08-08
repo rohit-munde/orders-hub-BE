@@ -117,13 +117,14 @@ class GmailOrderImportServiceTest {
     }
 
     @Test
-    void keepsTheEarliestEmailTimeAsThePlacementEstimate() {
+    void updatesThePlacementTimeWhenALaterOrderEmailArrives() {
         Instant original = Instant.parse("2026-08-02T12:30:00Z");
         Order existing = existingOrder(original);
+        Instant later = Instant.parse("2026-08-03T12:30:00Z");
         GmailOrderPreview laterEmail = candidate(
                 "message-later", "amazon.in", "Amazon", "ORDER-123",
                 null, null, null, null, OrderStatus.SHIPPED,
-                Instant.parse("2026-08-03T12:30:00Z")
+                later
         );
         when(sourceRepository.findByConnectedAccountIdAndGmailMessageId(11, "message-later"))
                 .thenReturn(Optional.empty());
@@ -133,12 +134,15 @@ class GmailOrderImportServiceTest {
 
         service.importOrder(account, "message-later", laterEmail, 2);
 
-        assertEquals(original, existing.getPlacedAt());
+        assertEquals(later, existing.getPlacedAt());
+        assertEquals(OrderStatus.SHIPPED, existing.getStatus());
     }
 
     @Test
-    void movesThePlacementEstimateEarlierWhenAnOlderOrderEmailArrives() {
-        Order existing = existingOrder(Instant.parse("2026-08-02T12:30:00Z"));
+    void doesNotOverwriteWithAnOlderOrderEmail() {
+        Instant original = Instant.parse("2026-08-02T12:30:00Z");
+        Order existing = existingOrder(original);
+        existing.setStatus(OrderStatus.SHIPPED);
         Instant earlier = Instant.parse("2026-08-01T12:30:00Z");
         GmailOrderPreview earlierEmail = candidate(
                 "message-earlier", "amazon.in", "Amazon", "ORDER-123",
@@ -152,7 +156,8 @@ class GmailOrderImportServiceTest {
 
         service.importOrder(account, "message-earlier", earlierEmail, 2);
 
-        assertEquals(earlier, existing.getPlacedAt());
+        assertEquals(original, existing.getPlacedAt());
+        assertEquals(OrderStatus.SHIPPED, existing.getStatus());
     }
 
     @Test
@@ -335,6 +340,35 @@ class GmailOrderImportServiceTest {
                 messageId, merchantKey, brandName, orderNo, amount, currency,
                 paid, otp, status, placedAt, List.of()
         );
+    }
+
+    @Test
+    void importsRefundEmailAndUpdatesStatusAndTimestampToRefunded() {
+        Order existing = new Order();
+        existing.setUser(account.getUser());
+        existing.setMerchantKey("amazon.in");
+        existing.setOrderNo("407-3385584-8184336");
+        existing.setPlacedAt(Instant.parse("2026-08-01T10:00:00Z"));
+        existing.setStatus(OrderStatus.DELIVERED);
+
+        Instant refundDate = Instant.parse("2026-08-09T12:08:00Z");
+        GmailOrderPreview candidate = candidate(
+                "msg-refund-1", "amazon.in", "Amazon", "407-3385584-8184336",
+                new BigDecimal("1999.00"), "INR", true, null, OrderStatus.REFUNDED, refundDate
+        );
+
+        when(sourceRepository.findByConnectedAccountIdAndGmailMessageId(11, "msg-refund-1"))
+                .thenReturn(Optional.empty());
+        when(orderRepository.findByUserIdAndMerchantKeyAndOrderNo(7, "amazon.in", "407-3385584-8184336"))
+                .thenReturn(Optional.of(existing));
+        when(orderRepository.save(existing)).thenReturn(existing);
+
+        GmailOrderImportService.ImportResult result = service.importOrder(account, "msg-refund-1", candidate, 3);
+
+        assertEquals(SAVED, result.outcome());
+        assertSame(existing, result.order());
+        assertEquals(OrderStatus.REFUNDED, existing.getStatus());
+        assertEquals(refundDate, existing.getPlacedAt());
     }
 
     private Order existingOrder(Instant placedAt) {

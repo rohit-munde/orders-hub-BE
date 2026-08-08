@@ -20,7 +20,7 @@ public class GmailOrderParser {
             "(?i)\\border\\s*(?:(?:number|no\\.?|id)\\s*[:#-]?\\s*|[#:]\\s*)([a-z0-9][a-z0-9-]{2,})\\b"
     );
     private static final Pattern BILL_AMOUNT = Pattern.compile(
-            "(?i)\\b(?:grand\\s+total|order\\s+total|total\\s+amount|amount\\s+paid|bill\\s+amount|total)"
+            "(?i)\\b(?:grand\\s+total|order\\s+total|total\\s+amount|amount\\s+paid|bill\\s+amount|total\\s+refund|refund\\s+total|refund\\s+subtotal|total)"
                     + "\\s*:?\\s*(?:(INR|USD|Rs\\.?|₹|\\$)\\s*)?([0-9][0-9,]*(?:\\.[0-9]{1,2})?)"
     );
     private static final Pattern OTP = Pattern.compile(
@@ -32,16 +32,17 @@ public class GmailOrderParser {
     private static final Pattern PAID = Pattern.compile(
             "(?i)\\bpaid\\b|\\bpayment\\s+(?:successful|received|completed)\\b"
     );
-    private static final int PARSER_VERSION = 2;
+    private static final int PARSER_VERSION = 4;
 
     public GmailOrderPreview parse(GmailMessageContent message) {
         String body = valueOrEmpty(message.body());
         String searchableText = valueOrEmpty(message.subject()) + "\n" + body;
-        Amount amount = amount(body);
+        String merchantKey = merchantKey(message.from());
+        Amount amount = amount(body, merchantKey);
 
         return new GmailOrderPreview(
                 message.gmailMessageId(),
-                merchantKey(message.from()),
+                merchantKey,
                 brandName(message.from()),
                 extract(ORDER_NUMBER, body),
                 amount.value(),
@@ -80,13 +81,13 @@ public class GmailOrderParser {
         return domain.find() ? domain.group(1).toLowerCase(Locale.ROOT) : null;
     }
 
-    private Amount amount(String body) {
+    private Amount amount(String body, String merchantKey) {
         Matcher matcher = BILL_AMOUNT.matcher(body);
         if (!matcher.find()) {
             return new Amount(null, null);
         }
         String marker = matcher.group(1);
-        String currency = marker == null ? null : switch (marker.toUpperCase()) {
+        String currency = marker == null ? inferredCurrency(merchantKey) : switch (marker.toUpperCase(Locale.ROOT)) {
             case "USD", "$" -> "USD";
             default -> "INR";
         };
@@ -94,6 +95,10 @@ public class GmailOrderParser {
                 new BigDecimal(matcher.group(2).replace(",", "")),
                 currency
         );
+    }
+
+    private String inferredCurrency(String merchantKey) {
+        return merchantKey != null && merchantKey.endsWith(".in") ? "INR" : null;
     }
 
     private Boolean paymentState(String text) {
@@ -104,6 +109,9 @@ public class GmailOrderParser {
     }
 
     private OrderStatus status(String text) {
+        if (contains(text, "refund", "refunded")) {
+            return OrderStatus.REFUNDED;
+        }
         if (contains(text, "cancelled", "canceled")) {
             return OrderStatus.CANCELLED;
         }
