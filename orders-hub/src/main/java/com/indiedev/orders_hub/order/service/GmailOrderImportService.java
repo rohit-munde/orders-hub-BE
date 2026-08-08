@@ -156,8 +156,14 @@ public class GmailOrderImportService {
         if (!StringUtils.hasText(order.getBrandName()) && StringUtils.hasText(candidate.brandName())) {
             order.setBrandName(candidate.brandName().strip());
         }
-        if (order.getBillAmount() == null && candidate.billAmount() != null) {
-            order.setBillAmount(candidate.billAmount());
+        if (candidate.status() == OrderStatus.REFUNDED) {
+            if (candidate.billAmount() != null) {
+                order.setRefundAmount(candidate.billAmount());
+            }
+        } else {
+            if (order.getBillAmount() == null && candidate.billAmount() != null) {
+                order.setBillAmount(candidate.billAmount());
+            }
         }
         if (!StringUtils.hasText(order.getCurrency()) && StringUtils.hasText(candidate.currency())) {
             order.setCurrency(candidate.currency().strip().toUpperCase(Locale.ROOT));

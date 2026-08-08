@@ -69,6 +69,7 @@ class OrderControllerTest {
                                 "Amazon",
                                 "ORDER-123",
                                 new BigDecimal("1499.00"),
+                                null,
                                 "INR",
                                 true,
                                 OrderStatus.SHIPPED,

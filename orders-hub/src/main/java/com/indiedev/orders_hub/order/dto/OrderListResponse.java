@@ -17,6 +17,7 @@ public record OrderListResponse(
             String brandName,
             String orderNo,
             BigDecimal billAmount,
+            BigDecimal refundAmount,
             String currency,
             Boolean paid,
             OrderStatus status,

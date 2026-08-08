@@ -25,7 +25,8 @@ public class GmailSearchProperties {
     @Max(100)
     private int batchSize = 100;
     private List<String> subjectKeywords = List.of(
-            "order", "ordered", "shipped", "delivered", "dispatched", "invoice", "receipt"
+            "order", "ordered", "shipped", "delivered", "dispatched", "invoice", "receipt",
+            "refund", "refunded", "return", "returned"
     );
     private List<String> senderDomains = List.of(
             "amazon.in", "flipkart.com", "myntra.com", "meesho.com"

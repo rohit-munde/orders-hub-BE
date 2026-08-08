@@ -43,6 +43,7 @@ public class OrderQueryService {
                 order.getBrandName(),
                 order.getOrderNo(),
                 order.getBillAmount(),
+                order.getRefundAmount(),
                 order.getCurrency(),
                 order.getPaid(),
                 order.getStatus(),

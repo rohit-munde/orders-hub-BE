@@ -56,6 +56,9 @@ public class Order extends BaseEntity {
     @Column(name = "placed_at")
     private Instant placedAt;
 
+    @Column(name = "refund_amount", nullable = true)
+    private BigDecimal refundAmount;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false, foreignKey = @ForeignKey(name = "fk_connected_order"))
     private User user;

@@ -350,6 +350,7 @@ class GmailOrderImportServiceTest {
         existing.setOrderNo("407-3385584-8184336");
         existing.setPlacedAt(Instant.parse("2026-08-01T10:00:00Z"));
         existing.setStatus(OrderStatus.DELIVERED);
+        existing.setBillAmount(new BigDecimal("2004.00"));
 
         Instant refundDate = Instant.parse("2026-08-09T12:08:00Z");
         GmailOrderPreview candidate = candidate(
@@ -369,6 +370,8 @@ class GmailOrderImportServiceTest {
         assertSame(existing, result.order());
         assertEquals(OrderStatus.REFUNDED, existing.getStatus());
         assertEquals(refundDate, existing.getPlacedAt());
+        assertEquals(new BigDecimal("2004.00"), existing.getBillAmount());
+        assertEquals(new BigDecimal("1999.00"), existing.getRefundAmount());
     }
 
     private Order existingOrder(Instant placedAt) {

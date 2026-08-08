@@ -2,6 +2,7 @@ package com.indiedev.orders_hub.gmail.service;
 
 import com.indiedev.orders_hub.connectedaccount.ConnectedAccount;
 import com.indiedev.orders_hub.gmail.client.GmailApiClient;
+import com.indiedev.orders_hub.gmail.dto.GmailMessageContent;
 import com.indiedev.orders_hub.gmail.dto.GmailOrderPreview;
 import com.indiedev.orders_hub.gmail.dto.GmailSyncPreview;
 import com.indiedev.orders_hub.order.service.GmailOrderImportService;
@@ -47,26 +48,56 @@ public class GmailSyncService {
         ImportCounts counts = new ImportCounts();
         int parserVersion = orderParser.version();
 
+        List<String> candidatesToFetch = new ArrayList<>();
         for (String gmailMessageId : gmailMessageIds) {
             try {
-                if (!importService.shouldProcess(account.getId(), gmailMessageId, parserVersion)) {
+                if (importService.shouldProcess(account.getId(), gmailMessageId, parserVersion)) {
+                    candidatesToFetch.add(gmailMessageId);
+                } else {
                     counts.skipped++;
-                    continue;
                 }
-                GmailOrderPreview candidate = orderParser.parse(
-                        gmailApiClient.getFullMessage(accessToken, gmailMessageId)
-                );
+            } catch (RuntimeException exception) {
+                counts.failed++;
+                recordFailure(account, gmailMessageId, parserVersion);
+            }
+        }
+
+        if (candidatesToFetch.isEmpty()) {
+            return counts;
+        }
+
+        List<GmailMessageContent> fetchedMessages = new ArrayList<>();
+        try (var executor = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {
+            List<java.util.concurrent.Future<GmailMessageContent>> futures = candidatesToFetch.stream()
+                    .map(msgId -> executor.submit(() -> gmailApiClient.getFullMessage(accessToken, msgId)))
+                    .toList();
+
+            for (int i = 0; i < futures.size(); i++) {
+                String msgId = candidatesToFetch.get(i);
+                try {
+                    fetchedMessages.add(futures.get(i).get());
+                } catch (Exception exception) {
+                    counts.failed++;
+                    recordFailure(account, msgId, parserVersion);
+                }
+            }
+        }
+
+        for (GmailMessageContent message : fetchedMessages) {
+            try {
+                GmailOrderPreview candidate = orderParser.parse(message);
                 count(
-                        importService.importOrder(account, gmailMessageId, candidate, parserVersion),
+                        importService.importOrder(account, message.gmailMessageId(), candidate, parserVersion),
                         candidate,
                         counts,
                         importedOrders
                 );
             } catch (RuntimeException exception) {
                 counts.failed++;
-                recordFailure(account, gmailMessageId, parserVersion);
+                recordFailure(account, message.gmailMessageId(), parserVersion);
             }
         }
+
         return counts;
     }
 

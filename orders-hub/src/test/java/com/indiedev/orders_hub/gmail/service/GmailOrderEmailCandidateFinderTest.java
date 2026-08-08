@@ -78,7 +78,8 @@ class GmailOrderEmailCandidateFinderTest {
         verify(client).findMessageIds(
                 "access-token",
                 "newer_than:45d {subject:order subject:ordered subject:shipped subject:delivered "
-                        + "subject:dispatched subject:invoice subject:receipt from:amazon.in "
+                        + "subject:dispatched subject:invoice subject:receipt subject:refund "
+                        + "subject:refunded subject:return subject:returned from:amazon.in "
                         + "from:flipkart.com from:myntra.com from:meesho.com}",
                 100
         );
