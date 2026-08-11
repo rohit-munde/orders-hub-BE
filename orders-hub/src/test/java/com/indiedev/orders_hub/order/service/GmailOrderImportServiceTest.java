@@ -85,6 +85,51 @@ class GmailOrderImportServiceTest {
     }
 
     @Test
+    void importsDifferentOrderNumbersFromTheSameGmailMessage() {
+        Order firstOrder = new Order();
+        firstOrder.setUser(account.getUser());
+        firstOrder.setMerchantKey("amazon.in");
+        firstOrder.setOrderNo("407-1111111-1111111");
+        firstOrder.setStatus(OrderStatus.CONFIRMED);
+        OrderEmailSource existingMessageSource = source(OrderEmailProcessingStatus.IMPORTED, 6);
+        existingMessageSource.setOrder(firstOrder);
+        GmailOrderPreview first = candidate(
+                "message-with-two-orders", "amazon.in", "Amazon", "407-1111111-1111111",
+                new BigDecimal("499.00"), "INR", true, null, OrderStatus.CONFIRMED
+        );
+        GmailOrderPreview second = candidate(
+                "message-with-two-orders", "amazon.in", "Amazon", "407-2222222-2222222",
+                new BigDecimal("799.00"), "INR", true, null, OrderStatus.CONFIRMED
+        );
+        when(sourceRepository.findByConnectedAccountIdAndGmailMessageId(11, "message-with-two-orders"))
+                .thenReturn(Optional.empty(), Optional.of(existingMessageSource));
+        when(orderRepository.findByUserIdAndMerchantKeyAndOrderNo(
+                7, "amazon.in", "407-1111111-1111111"
+        )).thenReturn(Optional.empty());
+        when(orderRepository.findByUserIdAndMerchantKeyAndOrderNo(
+                7, "amazon.in", "407-2222222-2222222"
+        )).thenReturn(Optional.empty());
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        GmailOrderImportService.ImportResult firstResult = service.importOrder(
+                account, "message-with-two-orders", first, 6
+        );
+        GmailOrderImportService.ImportResult secondResult = service.importOrder(
+                account, "message-with-two-orders", second, 6
+        );
+
+        assertEquals(SAVED, firstResult.outcome());
+        assertEquals(SAVED, secondResult.outcome());
+        assertNotSame(firstResult.order(), secondResult.order());
+        assertEquals("407-1111111-1111111", firstResult.order().getOrderNo());
+        assertEquals("407-2222222-2222222", secondResult.order().getOrderNo());
+        ArgumentCaptor<OrderEmailSource> sources = ArgumentCaptor.forClass(OrderEmailSource.class);
+        verify(sourceRepository, times(2)).save(sources.capture());
+        assertSame(firstResult.order(), sources.getAllValues().get(0).getOrder());
+        assertSame(secondResult.order(), sources.getAllValues().get(1).getOrder());
+    }
+
+    @Test
     void enrichesExistingOrderWithoutErasingKnownValuesOrRegressingStatus() {
         Order existing = new Order();
         existing.setUser(account.getUser());
@@ -178,6 +223,61 @@ class GmailOrderImportServiceTest {
         verify(sourceRepository).save(source.capture());
         assertEquals(OrderEmailProcessingStatus.IGNORED, source.getValue().getProcessingStatus());
         assertEquals("Missing merchant or order number", source.getValue().getFailureReason());
+    }
+
+    @Test
+    void removesStaleImportedOrderWhenReparseNoLongerFindsAnOrderIdentity() {
+        Order staleOrder = new Order();
+        staleOrder.setId(21);
+        staleOrder.setUser(account.getUser());
+        staleOrder.setMerchantKey("coinsstuff.com");
+        staleOrder.setOrderNo("PLEASE");
+        staleOrder.setStatus(OrderStatus.UNKNOWN);
+        OrderEmailSource existingSource = source(OrderEmailProcessingStatus.IMPORTED, 6);
+        existingSource.setId(31);
+        existingSource.setOrder(staleOrder);
+        GmailOrderPreview reparsedCandidate = candidate(
+                "message-please", "coinsstuff.com", "coinsstuff.com", null,
+                new BigDecimal("2900.92"), "INR", null, null, OrderStatus.UNKNOWN
+        );
+        when(sourceRepository.findByConnectedAccountIdAndGmailMessageId(11, "message-please"))
+                .thenReturn(Optional.of(existingSource));
+        when(sourceRepository.existsByOrderIdAndIdNot(21, 31)).thenReturn(false);
+
+        GmailOrderImportService.ImportResult result = service.importOrder(
+                account, "message-please", reparsedCandidate, 7
+        );
+
+        assertEquals(IGNORED, result.outcome());
+        verify(orderRepository).delete(staleOrder);
+        ArgumentCaptor<OrderEmailSource> source = ArgumentCaptor.forClass(OrderEmailSource.class);
+        verify(sourceRepository).save(source.capture());
+        assertNull(source.getValue().getOrder());
+        assertEquals(OrderEmailProcessingStatus.IGNORED, source.getValue().getProcessingStatus());
+    }
+
+    @Test
+    void keepsStaleOrderWhenAnotherEmailSourceStillReferencesIt() {
+        Order staleOrder = new Order();
+        staleOrder.setId(22);
+        staleOrder.setUser(account.getUser());
+        staleOrder.setMerchantKey("coinsstuff.com");
+        staleOrder.setOrderNo("PLEASE");
+        staleOrder.setStatus(OrderStatus.UNKNOWN);
+        OrderEmailSource existingSource = source(OrderEmailProcessingStatus.IMPORTED, 6);
+        existingSource.setId(32);
+        existingSource.setOrder(staleOrder);
+        GmailOrderPreview reparsedCandidate = candidate(
+                "message-please", "coinsstuff.com", "coinsstuff.com", null,
+                new BigDecimal("2900.92"), "INR", null, null, OrderStatus.UNKNOWN
+        );
+        when(sourceRepository.findByConnectedAccountIdAndGmailMessageId(11, "message-please"))
+                .thenReturn(Optional.of(existingSource));
+        when(sourceRepository.existsByOrderIdAndIdNot(22, 32)).thenReturn(true);
+
+        service.importOrder(account, "message-please", reparsedCandidate, 7);
+
+        verify(orderRepository, never()).delete(any(Order.class));
     }
 
     @Test

@@ -52,7 +52,7 @@ class GmailSyncServiceTest {
         );
         GmailOrderPreview preview = candidate("saved", "ORDER-1");
         when(gmailApiClient.getFullMessage("access-token", "saved")).thenReturn(content);
-        when(parser.parse(content)).thenReturn(preview);
+        when(parser.parseAll(content)).thenReturn(List.of(preview));
         when(importService.importOrder(account, "saved", preview, 2))
                 .thenReturn(new GmailOrderImportService.ImportResult(SAVED, new Order()));
         when(gmailApiClient.getFullMessage("access-token", "failed"))
@@ -81,7 +81,7 @@ class GmailSyncServiceTest {
         );
         GmailOrderPreview preview = candidate("ignored", null);
         when(gmailApiClient.getFullMessage("access-token", "ignored")).thenReturn(content);
-        when(parser.parse(content)).thenReturn(preview);
+        when(parser.parseAll(content)).thenReturn(List.of(preview));
         when(importService.importOrder(account, "ignored", preview, 2))
                 .thenReturn(new GmailOrderImportService.ImportResult(IGNORED, null));
 
@@ -106,7 +106,7 @@ class GmailSyncServiceTest {
         );
         GmailOrderPreview preview = candidate("saved", "ORDER-1");
         when(gmailApiClient.getFullMessage("access-token", "saved")).thenReturn(content);
-        when(parser.parse(content)).thenReturn(preview);
+        when(parser.parseAll(content)).thenReturn(List.of(preview));
         when(importService.importOrder(account, "saved", preview, 2))
                 .thenReturn(new GmailOrderImportService.ImportResult(SAVED, new Order()));
 

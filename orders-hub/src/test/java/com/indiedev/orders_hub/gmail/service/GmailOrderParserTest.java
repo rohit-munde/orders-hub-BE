@@ -46,7 +46,7 @@ class GmailOrderParserTest {
         assertEquals(OrderStatus.SHIPPED, preview.status());
         assertEquals(receivedAt, preview.placedAt());
         assertEquals(List.of(), preview.orderItems());
-        assertEquals(5, parser.version());
+        assertEquals(7, parser.version());
     }
 
     @Test
@@ -103,6 +103,45 @@ class GmailOrderParserTest {
     }
 
     @Test
+    void treatsFutureDeliveryPromiseAsConfirmedInsteadOfDelivered() {
+        GmailMessageContent message = new GmailMessageContent(
+                "message-future-delivery",
+                "Your Amazon.in order has been placed",
+                "Amazon.in <auto-confirm@amazon.in>",
+                """
+                        Your order has been placed.
+                        Order #407-3526300-5739560
+                        Total: ₹701.55
+                        Your package will be delivered by Aug 14.
+                        """,
+                Instant.parse("2026-08-10T14:25:00Z")
+        );
+
+        GmailOrderPreview preview = parser.parse(message);
+
+        assertEquals("407-3526300-5739560", preview.orderNo());
+        assertEquals(OrderStatus.CONFIRMED, preview.status());
+    }
+
+    @Test
+    void ignoresPlainWordsAfterOrderIdMarkers() {
+        GmailMessageContent message = new GmailMessageContent(
+                "message-please",
+                "Account notice",
+                "Coinstuff <orders@coinsstuff.com>",
+                """
+                        Please order ID: Please keep this email for your records.
+                        Total: ₹2,900.92
+                        """,
+                Instant.parse("2026-08-11T10:52:00Z")
+        );
+
+        GmailOrderPreview preview = parser.parse(message);
+
+        assertNull(preview.orderNo());
+    }
+
+    @Test
     void leavesMerchantKeyNullWhenSenderHasNoEmailDomain() {
         GmailMessageContent message = new GmailMessageContent(
                 "message-5", "Order confirmed", "Amazon", "Order ID: ORDER-500", null
@@ -155,5 +194,36 @@ class GmailOrderParserTest {
         assertEquals("407-3385584-8184336", preview.orderNo());
         assertEquals(new BigDecimal("1999.00"), preview.billAmount());
         assertEquals("INR", preview.currency());
+    }
+
+    @Test
+    void parsesEachOrderNumberInOneEmailAsASeparatePreview() {
+        Instant receivedAt = Instant.parse("2026-08-10T14:15:00Z");
+        GmailMessageContent message = new GmailMessageContent(
+                "message-multi-order",
+                "Your Amazon.in order confirmation",
+                "Amazon.in <auto-confirm@amazon.in>",
+                """
+                        Your order has been placed.
+                        Order #407-1111111-1111111
+                        Total: ₹499.00
+
+                        Your order has been placed.
+                        Order #407-2222222-2222222
+                        Total: ₹799.00
+                        """,
+                receivedAt
+        );
+
+        List<GmailOrderPreview> previews = parser.parseAll(message);
+
+        assertEquals(2, previews.size());
+        assertEquals("407-1111111-1111111", previews.get(0).orderNo());
+        assertEquals(new BigDecimal("499.00"), previews.get(0).billAmount());
+        assertEquals("407-2222222-2222222", previews.get(1).orderNo());
+        assertEquals(new BigDecimal("799.00"), previews.get(1).billAmount());
+        assertTrue(previews.stream().allMatch(preview -> "message-multi-order".equals(preview.gmailMessageId())));
+        assertTrue(previews.stream().allMatch(preview -> "amazon.in".equals(preview.merchantKey())));
+        assertTrue(previews.stream().allMatch(preview -> receivedAt.equals(preview.placedAt())));
     }
 }

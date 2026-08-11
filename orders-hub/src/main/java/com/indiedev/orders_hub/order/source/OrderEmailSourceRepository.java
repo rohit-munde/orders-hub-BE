@@ -10,4 +10,6 @@ public interface OrderEmailSourceRepository extends JpaRepository<OrderEmailSour
             long connectedAccountId,
             String gmailMessageId
     );
+
+    boolean existsByOrderIdAndIdNot(long orderId, long sourceId);
 }

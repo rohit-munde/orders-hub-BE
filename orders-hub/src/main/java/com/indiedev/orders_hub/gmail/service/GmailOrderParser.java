@@ -6,6 +6,7 @@ import com.indiedev.orders_hub.order.OrderStatus;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.regex.Matcher;
@@ -32,23 +33,53 @@ public class GmailOrderParser {
     private static final Pattern PAID = Pattern.compile(
             "(?i)\\bpaid\\b|\\bpayment\\s+(?:successful|received|completed)\\b"
     );
-    private static final int PARSER_VERSION = 5;
+    private static final Pattern DELIVERED = Pattern.compile(
+            "(?i)\\b(?:has\\s+been|was|is|package\\s+)?delivered\\b(?!\\s+by)"
+    );
+    private static final int PARSER_VERSION = 7;
 
     public GmailOrderPreview parse(GmailMessageContent message) {
+        return parseAll(message).getFirst();
+    }
+
+    public List<GmailOrderPreview> parseAll(GmailMessageContent message) {
         String body = valueOrEmpty(message.body());
         String searchableText = valueOrEmpty(message.subject()) + "\n" + body;
         String merchantKey = merchantKey(message.from());
-        Amount amount = amount(body, merchantKey);
+        List<OrderMatch> orderMatches = orderMatches(body);
+
+        if (orderMatches.isEmpty()) {
+            return List.of(preview(message, merchantKey, null, body, searchableText));
+        }
+
+        List<GmailOrderPreview> previews = new ArrayList<>();
+        for (int i = 0; i < orderMatches.size(); i++) {
+            OrderMatch orderMatch = orderMatches.get(i);
+            int sectionEnd = i + 1 < orderMatches.size() ? orderMatches.get(i + 1).start() : body.length();
+            String orderSection = body.substring(orderMatch.start(), sectionEnd);
+            previews.add(preview(message, merchantKey, orderMatch.orderNo(), orderSection, searchableText));
+        }
+        return List.copyOf(previews);
+    }
+
+    private GmailOrderPreview preview(
+            GmailMessageContent message,
+            String merchantKey,
+            String orderNo,
+            String amountText,
+            String searchableText
+    ) {
+        Amount amount = amount(amountText, merchantKey);
 
         return new GmailOrderPreview(
                 message.gmailMessageId(),
                 merchantKey,
                 brandName(message.from()),
-                extract(ORDER_NUMBER, body),
+                orderNo,
                 amount.value(),
                 amount.currency(),
                 paymentState(searchableText),
-                extract(OTP, body),
+                extract(OTP, searchableText),
                 status(searchableText),
                 message.receivedAt(),
                 List.of()
@@ -115,7 +146,7 @@ public class GmailOrderParser {
         if (contains(text, "cancelled", "canceled")) {
             return OrderStatus.CANCELLED;
         }
-        if (contains(text, "delivered")) {
+        if (DELIVERED.matcher(text).find()) {
             return OrderStatus.DELIVERED;
         }
         if (contains(text, "out for delivery")) {
@@ -127,7 +158,7 @@ public class GmailOrderParser {
         if (contains(text, "dispatched")) {
             return OrderStatus.DISPATCHED;
         }
-        if (contains(text, "confirmed", "order placed")) {
+        if (contains(text, "confirmed", "order placed", "order has been placed")) {
             return OrderStatus.CONFIRMED;
         }
         return OrderStatus.UNKNOWN;
@@ -148,10 +179,34 @@ public class GmailOrderParser {
         return matcher.find() ? matcher.group(1).trim() : null;
     }
 
+    private List<OrderMatch> orderMatches(String body) {
+        Matcher matcher = ORDER_NUMBER.matcher(body);
+        List<OrderMatch> matches = new ArrayList<>();
+        while (matcher.find()) {
+            String orderNo = matcher.group(1).trim();
+            if (hasDigit(orderNo)) {
+                matches.add(new OrderMatch(matcher.start(), orderNo));
+            }
+        }
+        return matches;
+    }
+
+    private boolean hasDigit(String value) {
+        for (int i = 0; i < value.length(); i++) {
+            if (Character.isDigit(value.charAt(i))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private String valueOrEmpty(String value) {
         return value == null ? "" : value;
     }
 
     private record Amount(BigDecimal value, String currency) {
+    }
+
+    private record OrderMatch(int start, String orderNo) {
     }
 }

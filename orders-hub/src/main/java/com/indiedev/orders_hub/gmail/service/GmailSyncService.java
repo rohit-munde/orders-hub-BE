@@ -85,13 +85,14 @@ public class GmailSyncService {
 
         for (GmailMessageContent message : fetchedMessages) {
             try {
-                GmailOrderPreview candidate = orderParser.parse(message);
-                count(
-                        importService.importOrder(account, message.gmailMessageId(), candidate, parserVersion),
-                        candidate,
-                        counts,
-                        importedOrders
-                );
+                for (GmailOrderPreview candidate : orderParser.parseAll(message)) {
+                    count(
+                            importService.importOrder(account, message.gmailMessageId(), candidate, parserVersion),
+                            candidate,
+                            counts,
+                            importedOrders
+                    );
+                }
             } catch (RuntimeException exception) {
                 counts.failed++;
                 recordFailure(account, message.gmailMessageId(), parserVersion);

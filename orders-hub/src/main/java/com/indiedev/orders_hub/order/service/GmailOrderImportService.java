@@ -47,9 +47,6 @@ public class GmailOrderImportService {
     ) {
         lockUser(account);
         Optional<OrderEmailSource> existingSource = findSource(account, gmailMessageId);
-        if (existingSource.isPresent() && !isRetryable(existingSource.get(), parserVersion)) {
-            return new ImportResult(Outcome.SKIPPED, existingSource.get().getOrder());
-        }
 
         if (!gmailMessageId.equals(candidate.gmailMessageId())) {
             saveSource(
@@ -65,6 +62,7 @@ public class GmailOrderImportService {
         }
 
         if (!hasIdentity(candidate)) {
+            Order staleOrder = existingSource.map(OrderEmailSource::getOrder).orElse(null);
             saveSource(
                     existingSource.orElseGet(OrderEmailSource::new),
                     account,
@@ -74,11 +72,17 @@ public class GmailOrderImportService {
                     INVALID_CANDIDATE,
                     parserVersion
             );
+            existingSource.ifPresent(source -> deleteStaleOrderIfUnreferenced(source, staleOrder));
             return new ImportResult(Outcome.IGNORED, null);
         }
 
         String merchantKey = candidate.merchantKey().strip().toLowerCase(Locale.ROOT);
         String orderNo = candidate.orderNo().strip().toUpperCase(Locale.ROOT);
+        if (existingSource.isPresent() && !isRetryable(existingSource.get(), parserVersion)
+                && representsOrder(existingSource.get(), merchantKey, orderNo)) {
+            return new ImportResult(Outcome.SKIPPED, existingSource.get().getOrder());
+        }
+
         Order order = orderRepository.findByUserIdAndMerchantKeyAndOrderNo(
                         account.getUser().getId(), merchantKey, orderNo
                 )
@@ -141,6 +145,22 @@ public class GmailOrderImportService {
         return StringUtils.hasText(candidate.gmailMessageId())
                 && StringUtils.hasText(candidate.merchantKey())
                 && StringUtils.hasText(candidate.orderNo());
+    }
+
+    private boolean representsOrder(OrderEmailSource source, String merchantKey, String orderNo) {
+        Order order = source.getOrder();
+        return order != null
+                && merchantKey.equals(order.getMerchantKey())
+                && orderNo.equals(order.getOrderNo());
+    }
+
+    private void deleteStaleOrderIfUnreferenced(OrderEmailSource source, Order staleOrder) {
+        if (staleOrder == null || staleOrder.getId() == 0) {
+            return;
+        }
+        if (!sourceRepository.existsByOrderIdAndIdNot(staleOrder.getId(), source.getId())) {
+            orderRepository.delete(staleOrder);
+        }
     }
 
     private Order newOrder(ConnectedAccount account, String merchantKey, String orderNo) {
