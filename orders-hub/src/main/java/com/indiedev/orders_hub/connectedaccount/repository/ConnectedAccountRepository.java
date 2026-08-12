@@ -10,6 +10,7 @@ import java.util.Optional;
 
 public interface ConnectedAccountRepository extends JpaRepository<ConnectedAccount, Long> {
 
+    @EntityGraph(attributePaths = "user")
     Optional<ConnectedAccount> findByProviderAndEmail(
             ConnectedAccountProvider provider,
             String email

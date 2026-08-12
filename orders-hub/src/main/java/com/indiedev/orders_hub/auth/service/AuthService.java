@@ -1,6 +1,9 @@
 package com.indiedev.orders_hub.auth.service;
 
 import com.indiedev.orders_hub.auth.response.AuthResponse;
+import com.indiedev.orders_hub.connectedaccount.entity.ConnectedAccount;
+import com.indiedev.orders_hub.connectedaccount.entity.ConnectedAccountProvider;
+import com.indiedev.orders_hub.connectedaccount.repository.ConnectedAccountRepository;
 import com.indiedev.orders_hub.gmail.service.GmailConnectionService;
 import com.indiedev.orders_hub.gmail.service.GoogleOAuthService;
 import com.indiedev.orders_hub.user.entity.User;
@@ -16,6 +19,7 @@ public class AuthService {
     private final GoogleUserService googleUserService;
     private final GmailConnectionService gmailConnectionService;
     private final JwtService jwtService;
+    private final ConnectedAccountRepository connectedAccountRepository;
 
     public AuthResponse loginWithGoogle(String idToken, String serverAuthCode) {
         GoogleTokenVerifier.GoogleUser googleUser = googleTokenVerifier.verify(idToken);
@@ -25,16 +29,40 @@ public class AuthService {
             throw new IllegalArgumentException("Google credentials do not belong to the same account");
         }
 
+        return connectedAccountRepository.findByProviderAndEmail(
+                        ConnectedAccountProvider.GOOGLE,
+                        googleUser.email()
+                )
+                .map(account -> loginWithConnectedAccount(account, googleToken))
+                .orElseGet(() -> loginWithPrimaryGoogleAccount(googleUser, googleToken));
+    }
+
+    private AuthResponse loginWithConnectedAccount(
+            ConnectedAccount account,
+            GoogleOAuthService.Token googleToken
+    ) {
+        User owner = account.getUser();
+        GmailConnectionService.ConnectionResult connection = gmailConnectionService.connect(owner, googleToken);
+        return response(owner, connection);
+    }
+
+    private AuthResponse loginWithPrimaryGoogleAccount(
+            GoogleTokenVerifier.GoogleUser googleUser,
+            GoogleOAuthService.Token googleToken
+    ) {
         User savedUser = googleUserService.createOrUpdate(googleUser);
         GmailConnectionService.ConnectionResult connection = gmailConnectionService.connect(savedUser, googleToken);
+        return response(savedUser, connection);
+    }
 
+    private AuthResponse response(User user, GmailConnectionService.ConnectionResult connection) {
         return new AuthResponse(
-                jwtService.issue(savedUser),
+                jwtService.issue(user),
                 new AuthResponse.UserInfo(
-                        savedUser.getId(),
-                        savedUser.getName(),
-                        savedUser.getEmail(),
-                        savedUser.getProfileUrl()
+                        user.getId(),
+                        user.getName(),
+                        user.getEmail(),
+                        user.getProfileUrl()
                 ),
                 new AuthResponse.ConnectedAccountInfo(
                         connection.accountId(),

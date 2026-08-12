@@ -83,6 +83,7 @@ public class GmailOrderImportService {
             return new ImportResult(Outcome.SKIPPED, existingSource.get().getOrder());
         }
 
+        Order staleOrder = existingSource.map(OrderEmailSource::getOrder).orElse(null);
         Order order = orderRepository.findByUserIdAndMerchantKeyAndOrderNo(
                         account.getUser().getId(), merchantKey, orderNo
                 )
@@ -99,6 +100,9 @@ public class GmailOrderImportService {
                 null,
                 parserVersion
         );
+        if (existingSource.isPresent()) {
+            deleteReassignedStaleOrderIfUnreferenced(existingSource.get(), staleOrder, order);
+        }
         return new ImportResult(Outcome.SAVED, order);
     }
 
@@ -161,6 +165,24 @@ public class GmailOrderImportService {
         if (!sourceRepository.existsByOrderIdAndIdNot(staleOrder.getId(), source.getId())) {
             orderRepository.delete(staleOrder);
         }
+    }
+
+    private void deleteReassignedStaleOrderIfUnreferenced(
+            OrderEmailSource source,
+            Order staleOrder,
+            Order currentOrder
+    ) {
+        if (sameOrder(staleOrder, currentOrder)) {
+            return;
+        }
+        deleteStaleOrderIfUnreferenced(source, staleOrder);
+    }
+
+    private boolean sameOrder(Order first, Order second) {
+        if (first == second) {
+            return true;
+        }
+        return first != null && second != null && first.getId() != 0 && first.getId() == second.getId();
     }
 
     private Order newOrder(ConnectedAccount account, String merchantKey, String orderNo) {

@@ -21,7 +21,7 @@ public class GmailOrderParser {
             "(?i)\\border\\s*(?:(?:number|no\\.?|id)\\s*[:#-]?\\s*|[#:]\\s*)([a-z0-9][a-z0-9-]{2,})\\b"
     );
     private static final Pattern BILL_AMOUNT = Pattern.compile(
-            "(?i)\\b(?:grand\\s+total|order\\s+total|total\\s+amount|amount\\s+paid|bill\\s+amount|total\\s+refund|refund\\s+total|refund\\s+subtotal|total)"
+            "(?i)\\b(?:grand\\s+total|order\\s+total|total\\s+amount|amount\\s+paid|bill\\s+amount|total\\s+refund|refund\\s+total|refund\\s+subtotal|subtotal|total)"
                     + "\\s*:?\\s*(?:(INR|USD|Rs\\.?|₹|\\$)\\s*)?([0-9][0-9,]*(?:\\.[0-9]{1,2})?)"
     );
     private static final Pattern OTP = Pattern.compile(
@@ -36,7 +36,7 @@ public class GmailOrderParser {
     private static final Pattern DELIVERED = Pattern.compile(
             "(?i)\\b(?:has\\s+been|was|is|package\\s+)?delivered\\b(?!\\s+by)"
     );
-    private static final int PARSER_VERSION = 7;
+    private static final int PARSER_VERSION = 8;
 
     public GmailOrderPreview parse(GmailMessageContent message) {
         return parseAll(message).getFirst();

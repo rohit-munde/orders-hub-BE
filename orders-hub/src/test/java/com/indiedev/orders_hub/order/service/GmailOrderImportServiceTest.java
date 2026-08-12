@@ -281,6 +281,37 @@ class GmailOrderImportServiceTest {
     }
 
     @Test
+    void deletesStaleOrderWhenReparseChangesExistingSourceToCorrectOrderNumber() {
+        Order staleOrder = new Order();
+        staleOrder.setId(23);
+        staleOrder.setUser(account.getUser());
+        staleOrder.setMerchantKey("coinsstuff.com");
+        staleOrder.setOrderNo("PLEASE");
+        staleOrder.setStatus(OrderStatus.UNKNOWN);
+        OrderEmailSource existingSource = source(OrderEmailProcessingStatus.IMPORTED, 7);
+        existingSource.setId(33);
+        existingSource.setOrder(staleOrder);
+        GmailOrderPreview correctedCandidate = candidate(
+                "message-please", "coinsstuff.com", "coinsstuff.com", "13456",
+                new BigDecimal("2796.00"), "INR", null, null, OrderStatus.UNKNOWN
+        );
+        when(sourceRepository.findByConnectedAccountIdAndGmailMessageId(11, "message-please"))
+                .thenReturn(Optional.of(existingSource));
+        when(orderRepository.findByUserIdAndMerchantKeyAndOrderNo(7, "coinsstuff.com", "13456"))
+                .thenReturn(Optional.empty());
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(sourceRepository.existsByOrderIdAndIdNot(23, 33)).thenReturn(false);
+
+        GmailOrderImportService.ImportResult result = service.importOrder(
+                account, "message-please", correctedCandidate, 8
+        );
+
+        assertEquals(SAVED, result.outcome());
+        assertEquals("13456", result.order().getOrderNo());
+        verify(orderRepository).delete(staleOrder);
+    }
+
+    @Test
     void ignoresMismatchedParsedMessageIdUnderRequestedSourceIdentity() {
         GmailOrderPreview candidate = candidate(
                 "different-message", "amazon.in", "Amazon", "ORDER-123",

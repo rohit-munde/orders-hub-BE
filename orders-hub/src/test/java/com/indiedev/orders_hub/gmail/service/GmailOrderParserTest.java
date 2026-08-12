@@ -46,7 +46,7 @@ class GmailOrderParserTest {
         assertEquals(OrderStatus.SHIPPED, preview.status());
         assertEquals(receivedAt, preview.placedAt());
         assertEquals(List.of(), preview.orderItems());
-        assertEquals(7, parser.version());
+        assertEquals(8, parser.version());
     }
 
     @Test
@@ -139,6 +139,34 @@ class GmailOrderParserTest {
         GmailOrderPreview preview = parser.parse(message);
 
         assertNull(preview.orderNo());
+    }
+
+    @Test
+    void ignoresInstructionTextBeforeActualOrderNumberInNoteEmails() {
+        GmailMessageContent message = new GmailMessageContent(
+                "message-coinsstuff-note",
+                "Note added to your coinsstuff order",
+                "Coinstuff <orders@coinsstuff.com>",
+                """
+                        The following note has been added to your order:
+                        Please click on the below url to track your Shipments:
+                        https://shiprocket.co/tracking/77910186900
+
+                        As a reminder, here are your order details:
+
+                        [Order #13456] (August 9, 2026)
+                        Product Quantity Price
+                        Chhatrapati Shivaji Maharaj Coins 1 ₹799.00
+                        Subtotal: ₹2,796.00
+                        """,
+                Instant.parse("2026-08-11T10:52:00Z")
+        );
+
+        List<GmailOrderPreview> previews = parser.parseAll(message);
+
+        assertEquals(1, previews.size());
+        assertEquals("13456", previews.getFirst().orderNo());
+        assertEquals(new BigDecimal("2796.00"), previews.getFirst().billAmount());
     }
 
     @Test
