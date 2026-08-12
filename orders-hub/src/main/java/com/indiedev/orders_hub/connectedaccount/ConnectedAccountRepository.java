@@ -3,6 +3,7 @@ package com.indiedev.orders_hub.connectedaccount;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.EntityGraph;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface ConnectedAccountRepository extends JpaRepository<ConnectedAccount, Long> {
@@ -17,4 +18,7 @@ public interface ConnectedAccountRepository extends JpaRepository<ConnectedAccou
             long userId,
             ConnectedAccountProvider provider
     );
+
+    @EntityGraph(attributePaths = "user")
+    List<ConnectedAccount> findAllByUserIdOrderByIdAsc(long userId);
 }
