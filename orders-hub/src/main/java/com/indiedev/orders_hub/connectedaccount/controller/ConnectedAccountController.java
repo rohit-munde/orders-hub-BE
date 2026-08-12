@@ -1,15 +1,15 @@
-package com.indiedev.orders_hub.connectedaccount;
+package com.indiedev.orders_hub.connectedaccount.controller;
 
 import com.indiedev.orders_hub.connectedaccount.service.ConnectedAccountService;
 import com.indiedev.orders_hub.exception.AuthenticatedUserMissingException;
-import com.indiedev.orders_hub.request.GoogleConnectedAccountRequest;
+import com.indiedev.orders_hub.connectedaccount.request.GoogleConnectedAccountRequest;
 import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
-import com.indiedev.orders_hub.response.ApiSuccessResponse;
-import com.indiedev.orders_hub.response.ConnectedAccountResponse;
+import com.indiedev.orders_hub.common.response.ApiSuccessResponse;
+import com.indiedev.orders_hub.connectedaccount.response.ConnectedAccountResponse;
 
 import lombok.RequiredArgsConstructor;
 

@@ -1,7 +1,7 @@
 package com.indiedev.orders_hub;
 
 import com.indiedev.orders_hub.exception.BusinessException;
-import com.indiedev.orders_hub.response.ApiErrorResponse;
+import com.indiedev.orders_hub.common.response.ApiErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import org.jspecify.annotations.NonNull;
 import org.springframework.http.HttpStatus;

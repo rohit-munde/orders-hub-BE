@@ -1,7 +1,7 @@
-package com.indiedev.orders_hub.order;
+package com.indiedev.orders_hub.order.entity;
 
 import com.indiedev.orders_hub.common.BaseEntity;
-import com.indiedev.orders_hub.user.User;
+import com.indiedev.orders_hub.user.entity.User;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;

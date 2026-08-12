@@ -2,13 +2,13 @@ package com.indiedev.orders_hub.order.controller;
 
 import com.indiedev.orders_hub.GlobalExceptionHandling;
 import com.indiedev.orders_hub.config.SecurityConfig;
-import com.indiedev.orders_hub.order.OrderStatus;
-import com.indiedev.orders_hub.order.dto.OrderListResponse;
-import com.indiedev.orders_hub.order.dto.OrderSyncResponse;
+import com.indiedev.orders_hub.order.entity.OrderStatus;
+import com.indiedev.orders_hub.order.response.OrderListResponse;
+import com.indiedev.orders_hub.order.response.OrderSyncResponse;
 import com.indiedev.orders_hub.order.service.OrderQueryService;
 import com.indiedev.orders_hub.order.service.OrderSyncService;
-import com.indiedev.orders_hub.response.PageMetadata;
-import com.indiedev.orders_hub.response.PageResponse;
+import com.indiedev.orders_hub.common.response.PageMetadata;
+import com.indiedev.orders_hub.common.response.PageResponse;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;

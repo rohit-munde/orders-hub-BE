@@ -1,7 +1,7 @@
 package com.indiedev.orders_hub.auth.service;
 
-import com.indiedev.orders_hub.user.User;
-import com.indiedev.orders_hub.user.UserRepository;
+import com.indiedev.orders_hub.user.entity.User;
+import com.indiedev.orders_hub.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

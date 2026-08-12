@@ -1,7 +1,7 @@
 package com.indiedev.orders_hub.gmail.service;
 
-import com.indiedev.orders_hub.connectedaccount.ConnectedAccount;
-import com.indiedev.orders_hub.connectedaccount.ConnectedAccountPersistenceService;
+import com.indiedev.orders_hub.connectedaccount.entity.ConnectedAccount;
+import com.indiedev.orders_hub.connectedaccount.service.ConnectedAccountPersistenceService;
 import com.indiedev.orders_hub.exception.GmailConnectionRequiredException;
 import com.indiedev.orders_hub.security.token.TokenEncryptionService;
 import org.junit.jupiter.api.BeforeEach;

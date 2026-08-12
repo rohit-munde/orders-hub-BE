@@ -1,17 +1,17 @@
 package com.indiedev.orders_hub.order.service;
 
-import com.indiedev.orders_hub.connectedaccount.ConnectedAccount;
-import com.indiedev.orders_hub.connectedaccount.ConnectedAccountProvider;
-import com.indiedev.orders_hub.connectedaccount.ConnectedAccountRepository;
-import com.indiedev.orders_hub.connectedaccount.ConnectedAccountSyncStatus;
+import com.indiedev.orders_hub.connectedaccount.entity.ConnectedAccount;
+import com.indiedev.orders_hub.connectedaccount.entity.ConnectedAccountProvider;
+import com.indiedev.orders_hub.connectedaccount.repository.ConnectedAccountRepository;
+import com.indiedev.orders_hub.connectedaccount.entity.ConnectedAccountSyncStatus;
 import com.indiedev.orders_hub.gmail.dto.GmailOrderPreview;
-import com.indiedev.orders_hub.order.Order;
-import com.indiedev.orders_hub.order.OrderRepository;
-import com.indiedev.orders_hub.order.OrderStatus;
+import com.indiedev.orders_hub.order.entity.Order;
+import com.indiedev.orders_hub.order.repository.OrderRepository;
+import com.indiedev.orders_hub.order.entity.OrderStatus;
 import com.indiedev.orders_hub.order.source.OrderEmailProcessingStatus;
 import com.indiedev.orders_hub.order.source.OrderEmailSourceRepository;
-import com.indiedev.orders_hub.user.User;
-import com.indiedev.orders_hub.user.UserRepository;
+import com.indiedev.orders_hub.user.entity.User;
+import com.indiedev.orders_hub.user.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;

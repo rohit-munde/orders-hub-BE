@@ -1,9 +1,13 @@
-package com.indiedev.orders_hub.connectedaccount;
+package com.indiedev.orders_hub.connectedaccount.service;
 
+import com.indiedev.orders_hub.connectedaccount.entity.ConnectedAccount;
+import com.indiedev.orders_hub.connectedaccount.entity.ConnectedAccountProvider;
+import com.indiedev.orders_hub.connectedaccount.repository.ConnectedAccountRepository;
+import com.indiedev.orders_hub.connectedaccount.entity.ConnectedAccountSyncStatus;
 import com.indiedev.orders_hub.exception.ConnectedAccountConflictException;
 import com.indiedev.orders_hub.gmail.service.GoogleOAuthService;
 import com.indiedev.orders_hub.security.token.TokenEncryptionService;
-import com.indiedev.orders_hub.user.User;
+import com.indiedev.orders_hub.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

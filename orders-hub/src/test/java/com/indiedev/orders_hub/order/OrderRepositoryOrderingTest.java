@@ -1,7 +1,10 @@
 package com.indiedev.orders_hub.order;
 
-import com.indiedev.orders_hub.user.User;
-import com.indiedev.orders_hub.user.UserRepository;
+import com.indiedev.orders_hub.order.entity.Order;
+import com.indiedev.orders_hub.order.entity.OrderStatus;
+import com.indiedev.orders_hub.order.repository.OrderRepository;
+import com.indiedev.orders_hub.user.entity.User;
+import com.indiedev.orders_hub.user.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;

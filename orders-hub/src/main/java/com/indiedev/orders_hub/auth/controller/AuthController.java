@@ -2,7 +2,7 @@ package com.indiedev.orders_hub.auth.controller;
 
 import com.indiedev.orders_hub.auth.response.AuthResponse;
 import com.indiedev.orders_hub.auth.service.AuthService;
-import com.indiedev.orders_hub.response.ApiSuccessResponse;
+import com.indiedev.orders_hub.common.response.ApiSuccessResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;

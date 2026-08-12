@@ -1,6 +1,6 @@
 package com.indiedev.orders_hub.auth.service;
 
-import com.indiedev.orders_hub.user.User;
+import com.indiedev.orders_hub.user.entity.User;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;

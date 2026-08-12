@@ -1,4 +1,4 @@
-package com.indiedev.orders_hub.response;
+package com.indiedev.orders_hub.connectedaccount.response;
 
 import java.time.Instant;
 

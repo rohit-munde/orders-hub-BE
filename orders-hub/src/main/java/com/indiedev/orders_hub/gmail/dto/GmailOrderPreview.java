@@ -1,6 +1,6 @@
 package com.indiedev.orders_hub.gmail.dto;
 
-import com.indiedev.orders_hub.order.OrderStatus;
+import com.indiedev.orders_hub.order.entity.OrderStatus;
 
 import java.math.BigDecimal;
 import java.time.Instant;

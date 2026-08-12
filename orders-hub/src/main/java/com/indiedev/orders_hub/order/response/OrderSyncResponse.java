@@ -1,4 +1,4 @@
-package com.indiedev.orders_hub.order.dto;
+package com.indiedev.orders_hub.order.response;
 
 import java.time.Instant;
 

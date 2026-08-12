@@ -1,7 +1,7 @@
-package com.indiedev.orders_hub.order.dto;
+package com.indiedev.orders_hub.order.response;
 
-import com.indiedev.orders_hub.order.OrderStatus;
-import com.indiedev.orders_hub.response.PageResponse;
+import com.indiedev.orders_hub.order.entity.OrderStatus;
+import com.indiedev.orders_hub.common.response.PageResponse;
 
 import java.math.BigDecimal;
 import java.time.Instant;

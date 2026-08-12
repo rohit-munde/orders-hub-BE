@@ -1,13 +1,13 @@
 package com.indiedev.orders_hub.gmail.service;
 
-import com.indiedev.orders_hub.connectedaccount.ConnectedAccount;
+import com.indiedev.orders_hub.connectedaccount.entity.ConnectedAccount;
 import com.indiedev.orders_hub.gmail.client.GmailApiClient;
 import com.indiedev.orders_hub.gmail.dto.GmailMessageContent;
 import com.indiedev.orders_hub.gmail.dto.GmailOrderPreview;
 import com.indiedev.orders_hub.gmail.dto.GmailSyncPreview;
 import com.indiedev.orders_hub.exception.GoogleApiException;
-import com.indiedev.orders_hub.order.Order;
-import com.indiedev.orders_hub.order.OrderStatus;
+import com.indiedev.orders_hub.order.entity.Order;
+import com.indiedev.orders_hub.order.entity.OrderStatus;
 import com.indiedev.orders_hub.order.service.GmailOrderImportService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

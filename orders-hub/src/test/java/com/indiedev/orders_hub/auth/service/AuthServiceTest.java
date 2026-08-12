@@ -4,7 +4,7 @@ import com.indiedev.orders_hub.auth.response.AuthResponse;
 import com.indiedev.orders_hub.gmail.dto.GmailSyncPreview;
 import com.indiedev.orders_hub.gmail.service.GmailConnectionService;
 import com.indiedev.orders_hub.gmail.service.GoogleOAuthService;
-import com.indiedev.orders_hub.user.User;
+import com.indiedev.orders_hub.user.entity.User;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

@@ -1,12 +1,12 @@
 package com.indiedev.orders_hub.order.service;
 
-import com.indiedev.orders_hub.connectedaccount.ConnectedAccountProvider;
-import com.indiedev.orders_hub.connectedaccount.ConnectedAccountRepository;
-import com.indiedev.orders_hub.order.Order;
-import com.indiedev.orders_hub.order.OrderItem;
-import com.indiedev.orders_hub.order.OrderRepository;
-import com.indiedev.orders_hub.order.dto.OrderListResponse;
-import com.indiedev.orders_hub.response.PageResponse;
+import com.indiedev.orders_hub.connectedaccount.entity.ConnectedAccountProvider;
+import com.indiedev.orders_hub.connectedaccount.repository.ConnectedAccountRepository;
+import com.indiedev.orders_hub.order.entity.Order;
+import com.indiedev.orders_hub.order.entity.OrderItem;
+import com.indiedev.orders_hub.order.repository.OrderRepository;
+import com.indiedev.orders_hub.order.response.OrderListResponse;
+import com.indiedev.orders_hub.common.response.PageResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;

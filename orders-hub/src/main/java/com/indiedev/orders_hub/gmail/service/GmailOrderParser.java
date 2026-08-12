@@ -2,7 +2,7 @@ package com.indiedev.orders_hub.gmail.service;
 
 import com.indiedev.orders_hub.gmail.dto.GmailMessageContent;
 import com.indiedev.orders_hub.gmail.dto.GmailOrderPreview;
-import com.indiedev.orders_hub.order.OrderStatus;
+import com.indiedev.orders_hub.order.entity.OrderStatus;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;

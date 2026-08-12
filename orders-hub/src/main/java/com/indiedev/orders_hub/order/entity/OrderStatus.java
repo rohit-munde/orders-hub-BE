@@ -1,4 +1,4 @@
-package com.indiedev.orders_hub.order;
+package com.indiedev.orders_hub.order.entity;
 
 public enum OrderStatus {
     UNKNOWN,

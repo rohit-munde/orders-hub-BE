@@ -1,14 +1,14 @@
 package com.indiedev.orders_hub.order.service;
 
-import com.indiedev.orders_hub.connectedaccount.ConnectedAccount;
-import com.indiedev.orders_hub.connectedaccount.ConnectedAccountPersistenceService;
-import com.indiedev.orders_hub.connectedaccount.ConnectedAccountProvider;
-import com.indiedev.orders_hub.connectedaccount.ConnectedAccountRepository;
+import com.indiedev.orders_hub.connectedaccount.entity.ConnectedAccount;
+import com.indiedev.orders_hub.connectedaccount.service.ConnectedAccountPersistenceService;
+import com.indiedev.orders_hub.connectedaccount.entity.ConnectedAccountProvider;
+import com.indiedev.orders_hub.connectedaccount.repository.ConnectedAccountRepository;
 import com.indiedev.orders_hub.gmail.dto.GmailSyncPreview;
 import com.indiedev.orders_hub.exception.GmailConnectionRequiredException;
 import com.indiedev.orders_hub.gmail.service.GmailSyncService;
 import com.indiedev.orders_hub.gmail.service.GoogleAccessTokenService;
-import com.indiedev.orders_hub.order.dto.OrderSyncResponse;
+import com.indiedev.orders_hub.order.response.OrderSyncResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

@@ -1,12 +1,12 @@
 package com.indiedev.orders_hub.connectedaccount.service;
 
-import com.indiedev.orders_hub.connectedaccount.ConnectedAccount;
-import com.indiedev.orders_hub.connectedaccount.ConnectedAccountRepository;
+import com.indiedev.orders_hub.connectedaccount.entity.ConnectedAccount;
+import com.indiedev.orders_hub.connectedaccount.repository.ConnectedAccountRepository;
 import com.indiedev.orders_hub.gmail.service.GmailConnectionService;
 import com.indiedev.orders_hub.gmail.service.GoogleOAuthService;
-import com.indiedev.orders_hub.response.ConnectedAccountResponse;
-import com.indiedev.orders_hub.user.User;
-import com.indiedev.orders_hub.user.UserRepository;
+import com.indiedev.orders_hub.connectedaccount.response.ConnectedAccountResponse;
+import com.indiedev.orders_hub.user.entity.User;
+import com.indiedev.orders_hub.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

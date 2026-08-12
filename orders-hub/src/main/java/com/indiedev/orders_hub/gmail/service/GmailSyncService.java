@@ -1,6 +1,6 @@
 package com.indiedev.orders_hub.gmail.service;
 
-import com.indiedev.orders_hub.connectedaccount.ConnectedAccount;
+import com.indiedev.orders_hub.connectedaccount.entity.ConnectedAccount;
 import com.indiedev.orders_hub.gmail.client.GmailApiClient;
 import com.indiedev.orders_hub.gmail.dto.GmailMessageContent;
 import com.indiedev.orders_hub.gmail.dto.GmailOrderPreview;

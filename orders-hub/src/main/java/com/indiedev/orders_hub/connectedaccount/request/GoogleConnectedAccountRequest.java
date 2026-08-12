@@ -1,4 +1,4 @@
-package com.indiedev.orders_hub.request;
+package com.indiedev.orders_hub.connectedaccount.request;
 
 import jakarta.validation.constraints.NotBlank;
 

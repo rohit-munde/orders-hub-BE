@@ -1,8 +1,8 @@
 package com.indiedev.orders_hub.order.source;
 
 import com.indiedev.orders_hub.common.BaseEntity;
-import com.indiedev.orders_hub.connectedaccount.ConnectedAccount;
-import com.indiedev.orders_hub.order.Order;
+import com.indiedev.orders_hub.connectedaccount.entity.ConnectedAccount;
+import com.indiedev.orders_hub.order.entity.Order;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;

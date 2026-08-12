@@ -1,15 +1,15 @@
 package com.indiedev.orders_hub.order.service;
 
-import com.indiedev.orders_hub.connectedaccount.ConnectedAccount;
+import com.indiedev.orders_hub.connectedaccount.entity.ConnectedAccount;
 import com.indiedev.orders_hub.gmail.dto.GmailOrderPreview;
-import com.indiedev.orders_hub.order.Order;
-import com.indiedev.orders_hub.order.OrderRepository;
-import com.indiedev.orders_hub.order.OrderStatus;
+import com.indiedev.orders_hub.order.entity.Order;
+import com.indiedev.orders_hub.order.repository.OrderRepository;
+import com.indiedev.orders_hub.order.entity.OrderStatus;
 import com.indiedev.orders_hub.order.source.OrderEmailProcessingStatus;
 import com.indiedev.orders_hub.order.source.OrderEmailSource;
 import com.indiedev.orders_hub.order.source.OrderEmailSourceRepository;
-import com.indiedev.orders_hub.user.User;
-import com.indiedev.orders_hub.user.UserRepository;
+import com.indiedev.orders_hub.user.entity.User;
+import com.indiedev.orders_hub.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;

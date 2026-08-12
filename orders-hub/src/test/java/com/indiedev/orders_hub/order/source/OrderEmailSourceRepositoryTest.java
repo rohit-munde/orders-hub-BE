@@ -1,12 +1,12 @@
 package com.indiedev.orders_hub.order.source;
 
-import com.indiedev.orders_hub.connectedaccount.ConnectedAccount;
-import com.indiedev.orders_hub.connectedaccount.ConnectedAccountProvider;
-import com.indiedev.orders_hub.connectedaccount.ConnectedAccountSyncStatus;
-import com.indiedev.orders_hub.order.Order;
-import com.indiedev.orders_hub.order.OrderRepository;
-import com.indiedev.orders_hub.order.OrderStatus;
-import com.indiedev.orders_hub.user.User;
+import com.indiedev.orders_hub.connectedaccount.entity.ConnectedAccount;
+import com.indiedev.orders_hub.connectedaccount.entity.ConnectedAccountProvider;
+import com.indiedev.orders_hub.connectedaccount.entity.ConnectedAccountSyncStatus;
+import com.indiedev.orders_hub.order.entity.Order;
+import com.indiedev.orders_hub.order.repository.OrderRepository;
+import com.indiedev.orders_hub.order.entity.OrderStatus;
+import com.indiedev.orders_hub.user.entity.User;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

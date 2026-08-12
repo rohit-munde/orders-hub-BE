@@ -1,4 +1,4 @@
-package com.indiedev.orders_hub.response;
+package com.indiedev.orders_hub.common.response;
 
 import org.springframework.data.domain.Page;
 

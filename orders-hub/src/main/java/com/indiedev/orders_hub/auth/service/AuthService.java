@@ -3,7 +3,7 @@ package com.indiedev.orders_hub.auth.service;
 import com.indiedev.orders_hub.auth.response.AuthResponse;
 import com.indiedev.orders_hub.gmail.service.GmailConnectionService;
 import com.indiedev.orders_hub.gmail.service.GoogleOAuthService;
-import com.indiedev.orders_hub.user.User;
+import com.indiedev.orders_hub.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
