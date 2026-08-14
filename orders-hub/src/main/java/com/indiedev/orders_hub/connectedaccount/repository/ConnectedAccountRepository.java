@@ -24,4 +24,15 @@ public interface ConnectedAccountRepository extends JpaRepository<ConnectedAccou
 
     @EntityGraph(attributePaths = "user")
     List<ConnectedAccount> findAllByUserIdOrderByIdAsc(long userId);
+
+    int countByUserId(long userId);
+
+    @EntityGraph(attributePaths = "user")
+    Optional<ConnectedAccount> findByIdAndUserIdAndProvider(
+            long id,
+            long userId,
+            ConnectedAccountProvider provider
+    );
+
+    long countByUserIdAndProvider(long userId, ConnectedAccountProvider provider);
 }

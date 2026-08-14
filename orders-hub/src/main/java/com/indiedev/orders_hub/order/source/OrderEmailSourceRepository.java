@@ -12,4 +12,12 @@ public interface OrderEmailSourceRepository extends JpaRepository<OrderEmailSour
     );
 
     boolean existsByOrderIdAndIdNot(long orderId, long sourceId);
+
+    long countByConnectedAccountId(long connectedAccountId);
+
+    void deleteByConnectedAccountId(long connectedAccountId);
+
+    long countByConnectedAccountUserId(long userId);
+
+    void deleteByConnectedAccountUserId(long userId);
 }

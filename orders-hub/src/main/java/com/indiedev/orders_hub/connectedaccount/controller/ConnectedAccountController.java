@@ -1,5 +1,6 @@
 package com.indiedev.orders_hub.connectedaccount.controller;
 
+import com.indiedev.orders_hub.connectedaccount.response.DisconnectAccountResponse;
 import com.indiedev.orders_hub.connectedaccount.service.ConnectedAccountService;
 import com.indiedev.orders_hub.exception.AuthenticatedUserMissingException;
 import com.indiedev.orders_hub.connectedaccount.request.GoogleConnectedAccountRequest;
@@ -51,5 +52,18 @@ public class ConnectedAccountController {
                 "Connected accounts fetched successfully",
                 connectedAccountService.getConnectedAccounts(userId(jwt))
         );
+    }
+
+
+    @DeleteMapping("/google/{accountId}")
+    public ApiSuccessResponse<DisconnectAccountResponse> disconnectAccount(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long accountId
+    ) {
+        DisconnectAccountResponse response = connectedAccountService.disconnectGoogle(
+                userId(jwt),
+                accountId
+        );
+        return new ApiSuccessResponse<>("Google account disconnected successfully", response);
     }
 }
