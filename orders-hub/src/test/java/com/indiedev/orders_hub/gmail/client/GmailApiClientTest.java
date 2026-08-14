@@ -1,0 +1,267 @@
+package com.indiedev.orders_hub.gmail.client;
+
+import com.indiedev.orders_hub.gmail.dto.GmailMessageContent;
+import com.indiedev.orders_hub.exception.GoogleApiException;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.web.client.RestClient;
+
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.Base64;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.test.web.client.ExpectedCount.once;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
+
+class GmailApiClientTest {
+
+    private MockRestServiceServer server;
+    private GmailApiClient client;
+
+    @BeforeEach
+    void setUp() {
+        RestClient.Builder builder = RestClient.builder();
+        server = MockRestServiceServer.bindTo(builder).build();
+        client = new GmailApiClient(builder);
+    }
+
+    @Test
+    void fetchesGmailProfile() {
+        server.expect(once(), request -> {
+                    assertEquals("/gmail/v1/users/me/profile", request.getURI().getPath());
+                    assertEquals("Bearer access-token", request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION));
+                })
+                .andRespond(withSuccess("{\"emailAddress\":\"shopper@gmail.com\"}", MediaType.APPLICATION_JSON));
+
+        assertEquals("shopper@gmail.com", client.getProfileEmail("access-token"));
+        server.verify();
+    }
+
+    @Test
+    void convertsGoogleFailureToSafeGmailApiException() {
+        server.expect(once(), request -> assertEquals("/gmail/v1/users/me/profile", request.getURI().getPath()))
+                .andRespond(withServerError());
+
+        GoogleApiException exception = assertThrows(
+                GoogleApiException.class,
+                () -> client.getProfileEmail("secret-access-token")
+        );
+        assertEquals("Unable to fetch Gmail profile", exception.getMessage());
+        assertFalse(exception.getMessage().contains("secret-access-token"));
+    }
+
+    @Test
+    void returnsAllIdsFromTheBoundedSearchResponse() {
+        server.expect(once(), request -> {
+                    String query = URLDecoder.decode(request.getURI().getRawQuery(), StandardCharsets.UTF_8);
+                    assertEquals("/gmail/v1/users/me/messages", request.getURI().getPath());
+                    assertTrue(query.contains("maxResults=25"));
+                    assertTrue(query.contains("q=subject:order"));
+                })
+                .andRespond(withSuccess("""
+                        {"messages":[{"id":"message-1"},{"id":"message-2"}]}
+                        """, MediaType.APPLICATION_JSON));
+
+        assertEquals(
+                java.util.List.of("message-1", "message-2"),
+                client.findMessageIds("access-token", "subject:order", 25)
+        );
+        server.verify();
+    }
+
+    @Test
+    void followsPageTokensAndStopsAtTheUniqueIdCap() {
+        server.expect(once(), request -> {
+                    String query = URLDecoder.decode(request.getURI().getRawQuery(), StandardCharsets.UTF_8);
+                    assertTrue(query.contains("maxResults=3"));
+                    assertFalse(query.contains("pageToken="));
+                })
+                .andRespond(withSuccess("""
+                        {"messages":[{"id":"message-1"},{"id":"message-2"}],
+                         "nextPageToken":"page-2"}
+                        """, MediaType.APPLICATION_JSON));
+        server.expect(once(), request -> {
+                    String query = URLDecoder.decode(request.getURI().getRawQuery(), StandardCharsets.UTF_8);
+                    assertTrue(query.contains("maxResults=1"));
+                    assertTrue(query.contains("pageToken=page-2"));
+                })
+                .andRespond(withSuccess("""
+                        {"messages":[{"id":"message-3"}],
+                         "nextPageToken":"page-3"}
+                        """, MediaType.APPLICATION_JSON));
+
+        assertEquals(
+                java.util.List.of("message-1", "message-2", "message-3"),
+                client.findMessageIds("access-token", "subject:order", 3)
+        );
+        server.verify();
+    }
+
+    @Test
+    void deduplicatesIdsAcrossGmailPagesWithoutChangingOrder() {
+        server.expect(once(), request -> assertFalse(request.getURI().getQuery().contains("pageToken=")))
+                .andRespond(withSuccess(
+                        "{\"messages\":[{\"id\":\"message-1\"}],\"nextPageToken\":\"page-2\"}",
+                        MediaType.APPLICATION_JSON
+                ));
+        server.expect(once(), request -> assertTrue(request.getURI().getQuery().contains("pageToken=page-2")))
+                .andRespond(withSuccess(
+                        "{\"messages\":[{\"id\":\"message-1\"},{\"id\":\"message-2\"}]}",
+                        MediaType.APPLICATION_JSON
+                ));
+
+        assertEquals(
+                java.util.List.of("message-1", "message-2"),
+                client.findMessageIds("access-token", "subject:order", 10)
+        );
+        server.verify();
+    }
+
+    @Test
+    void stopsOnAnEmptyPageEvenWhenGmailReturnsAnotherToken() {
+        server.expect(once(), request -> assertFalse(request.getURI().getQuery().contains("pageToken=")))
+                .andRespond(withSuccess(
+                        "{\"messages\":[],\"nextPageToken\":\"unexpected-page\"}",
+                        MediaType.APPLICATION_JSON
+                ));
+
+        assertEquals(
+                java.util.List.of(),
+                client.findMessageIds("access-token", "subject:order", 10)
+        );
+        server.verify();
+    }
+
+    @Test
+    void stopsWhenGmailRepeatsAPageToken() {
+        server.expect(once(), request -> assertFalse(request.getURI().getQuery().contains("pageToken=")))
+                .andRespond(withSuccess(
+                        "{\"messages\":[{\"id\":\"message-1\"}],\"nextPageToken\":\"same-token\"}",
+                        MediaType.APPLICATION_JSON
+                ));
+        server.expect(once(), request -> assertTrue(request.getURI().getQuery().contains("pageToken=same-token")))
+                .andRespond(withSuccess(
+                        "{\"messages\":[{\"id\":\"message-2\"}],\"nextPageToken\":\"same-token\"}",
+                        MediaType.APPLICATION_JSON
+                ));
+
+        assertEquals(
+                java.util.List.of("message-1", "message-2"),
+                client.findMessageIds("access-token", "subject:order", 10)
+        );
+        server.verify();
+    }
+
+    @Test
+    void fetchesFullMessageAndPrefersNestedPlainTextBody() {
+        String plainBody = "Order number: ORDER-123";
+        String htmlBody = "<p>Wrong HTML fallback</p>";
+        server.expect(once(), request -> {
+                    assertEquals("/gmail/v1/users/me/messages/message-1", request.getURI().getPath());
+                    String query = URLDecoder.decode(request.getURI().getRawQuery(), StandardCharsets.UTF_8);
+                    assertTrue(query.contains("format=full"));
+                })
+                .andRespond(withSuccess("""
+                        {
+                          "id":"message-1",
+                          "internalDate":"1785688200000",
+                          "payload":{
+                            "mimeType":"multipart/alternative",
+                            "headers":[
+                              {"name":"Subject","value":"Your order shipped"},
+                              {"name":"From","value":"Amazon <orders@amazon.in>"}
+                            ],
+                            "parts":[
+                              {"mimeType":"text/html","body":{"data":"%s"}},
+                              {"mimeType":"multipart/mixed","parts":[
+                                {"mimeType":"text/plain","body":{"data":"%s"}}
+                              ]}
+                            ]
+                          }
+                        }
+                        """.formatted(base64Url(htmlBody), base64Url(plainBody)), MediaType.APPLICATION_JSON));
+
+        GmailMessageContent message = client.getFullMessage("access-token", "message-1");
+
+        assertEquals("message-1", message.gmailMessageId());
+        assertEquals("Your order shipped", message.subject());
+        assertEquals("Amazon <orders@amazon.in>", message.from());
+        assertEquals(plainBody, message.body());
+        assertEquals(Instant.ofEpochMilli(1785688200000L), message.receivedAt());
+        server.verify();
+    }
+
+    @Test
+    void convertsHtmlBodyToReadableTextWhenPlainTextIsMissing() {
+        String htmlBody = "<html><body><p>Order number: ORDER-456</p><p>Total: INR 299.00</p></body></html>";
+        server.expect(once(), request -> {
+                    assertEquals("/gmail/v1/users/me/messages/message-2", request.getURI().getPath());
+                    assertTrue(request.getURI().getQuery().contains("format=full"));
+                })
+                .andRespond(withSuccess("""
+                        {
+                          "id":"message-2",
+                          "internalDate":"not-a-timestamp",
+                          "payload":{
+                            "mimeType":"text/html",
+                            "headers":[],
+                            "body":{"data":"%s"}
+                          }
+                        }
+                        """.formatted(base64Url(htmlBody)), MediaType.APPLICATION_JSON));
+
+        GmailMessageContent message = client.getFullMessage("access-token", "message-2");
+
+        assertTrue(message.body().contains("Order number: ORDER-456"));
+        assertTrue(message.body().contains("Total: INR 299.00"));
+        assertFalse(message.body().contains("<p>"));
+        assertNull(message.receivedAt());
+        server.verify();
+    }
+
+    @Test
+    void ignoresTextAttachmentsWhenSelectingTheMessageBody() {
+        String attachment = "Order number: WRONG-999";
+        String messageBody = "Order number: ORDER-789";
+        server.expect(once(), request ->
+                        assertEquals("/gmail/v1/users/me/messages/message-3", request.getURI().getPath()))
+                .andRespond(withSuccess("""
+                        {
+                          "id":"message-3",
+                          "payload":{
+                            "mimeType":"multipart/mixed",
+                            "headers":[],
+                            "parts":[
+                              {
+                                "mimeType":"text/plain",
+                                "filename":"invoice.txt",
+                                "body":{"data":"%s"}
+                              },
+                              {
+                                "mimeType":"text/plain",
+                                "filename":"",
+                                "body":{"data":"%s"}
+                              }
+                            ]
+                          }
+                        }
+                        """.formatted(base64Url(attachment), base64Url(messageBody)), MediaType.APPLICATION_JSON));
+
+        GmailMessageContent message = client.getFullMessage("access-token", "message-3");
+
+        assertEquals(messageBody, message.body());
+        server.verify();
+    }
+
+    private String base64Url(String value) {
+        return Base64.getUrlEncoder()
+                .withoutPadding()
+                .encodeToString(value.getBytes(StandardCharsets.UTF_8));
+    }
+}

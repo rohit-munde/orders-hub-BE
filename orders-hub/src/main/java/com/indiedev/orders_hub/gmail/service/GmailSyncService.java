@@ -1,0 +1,135 @@
+package com.indiedev.orders_hub.gmail.service;
+
+import com.indiedev.orders_hub.connectedaccount.entity.ConnectedAccount;
+import com.indiedev.orders_hub.gmail.client.GmailApiClient;
+import com.indiedev.orders_hub.gmail.dto.GmailMessageContent;
+import com.indiedev.orders_hub.gmail.dto.GmailOrderPreview;
+import com.indiedev.orders_hub.gmail.dto.GmailSyncPreview;
+import com.indiedev.orders_hub.order.service.GmailOrderImportService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.List;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class GmailSyncService {
+
+    private final OrderEmailCandidateFinder candidateFinder;
+    private final GmailApiClient gmailApiClient;
+    private final GmailOrderParser orderParser;
+    private final GmailOrderImportService importService;
+
+    public GmailSyncPreview sync(ConnectedAccount account, String accessToken) {
+        OrderEmailCandidateFinder.CandidateBatch batch = candidateFinder.find(accessToken);
+        List<GmailOrderPreview> importedOrders = new ArrayList<>();
+        ImportCounts counts = importCandidates(account, accessToken, batch.gmailMessageIds(), importedOrders);
+
+        return new GmailSyncPreview(
+                batch.query(),
+                batch.gmailMessageIds().size(),
+                counts.saved,
+                counts.skipped,
+                counts.ignored,
+                counts.failed,
+                importedOrders
+        );
+    }
+
+    private ImportCounts importCandidates(
+            ConnectedAccount account,
+            String accessToken,
+            List<String> gmailMessageIds,
+            List<GmailOrderPreview> importedOrders
+    ) {
+        ImportCounts counts = new ImportCounts();
+        int parserVersion = orderParser.version();
+
+        List<String> candidatesToFetch = new ArrayList<>();
+        for (String gmailMessageId : gmailMessageIds) {
+            try {
+                if (importService.shouldProcess(account.getId(), gmailMessageId, parserVersion)) {
+                    candidatesToFetch.add(gmailMessageId);
+                } else {
+                    counts.skipped++;
+                }
+            } catch (RuntimeException exception) {
+                counts.failed++;
+                recordFailure(account, gmailMessageId, parserVersion);
+            }
+        }
+
+        if (candidatesToFetch.isEmpty()) {
+            return counts;
+        }
+
+        List<GmailMessageContent> fetchedMessages = new ArrayList<>();
+        try (var executor = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {
+            List<java.util.concurrent.Future<GmailMessageContent>> futures = candidatesToFetch.stream()
+                    .map(msgId -> executor.submit(() -> gmailApiClient.getFullMessage(accessToken, msgId)))
+                    .toList();
+
+            for (int i = 0; i < futures.size(); i++) {
+                String msgId = candidatesToFetch.get(i);
+                try {
+                    fetchedMessages.add(futures.get(i).get());
+                } catch (Exception exception) {
+                    counts.failed++;
+                    recordFailure(account, msgId, parserVersion);
+                }
+            }
+        }
+
+        for (GmailMessageContent message : fetchedMessages) {
+            try {
+                for (GmailOrderPreview candidate : orderParser.parseAll(message)) {
+                    count(
+                            importService.importOrder(account, message.gmailMessageId(), candidate, parserVersion),
+                            candidate,
+                            counts,
+                            importedOrders
+                    );
+                }
+            } catch (RuntimeException exception) {
+                counts.failed++;
+                recordFailure(account, message.gmailMessageId(), parserVersion);
+            }
+        }
+
+        return counts;
+    }
+
+    private void count(
+            GmailOrderImportService.ImportResult result,
+            GmailOrderPreview candidate,
+            ImportCounts counts,
+            List<GmailOrderPreview> importedOrders
+    ) {
+        switch (result.outcome()) {
+            case SAVED -> {
+                counts.saved++;
+                importedOrders.add(candidate);
+            }
+            case SKIPPED -> counts.skipped++;
+            case IGNORED -> counts.ignored++;
+        }
+    }
+
+    private void recordFailure(ConnectedAccount account, String gmailMessageId, int parserVersion) {
+        try {
+            importService.recordFailure(account, gmailMessageId, parserVersion);
+        } catch (RuntimeException exception) {
+            log.warn("Unable to record Gmail import failure for connected account {}", account.getId());
+        }
+    }
+
+    private static final class ImportCounts {
+        private int saved;
+        private int skipped;
+        private int ignored;
+        private int failed;
+    }
+}
