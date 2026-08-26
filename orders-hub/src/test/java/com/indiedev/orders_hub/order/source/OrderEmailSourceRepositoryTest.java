@@ -3,6 +3,7 @@ package com.indiedev.orders_hub.order.source;
 import com.indiedev.orders_hub.connectedaccount.entity.ConnectedAccount;
 import com.indiedev.orders_hub.connectedaccount.entity.ConnectedAccountProvider;
 import com.indiedev.orders_hub.connectedaccount.entity.ConnectedAccountSyncStatus;
+import com.indiedev.orders_hub.order.entity.Company;
 import com.indiedev.orders_hub.order.entity.Order;
 import com.indiedev.orders_hub.order.repository.OrderRepository;
 import com.indiedev.orders_hub.order.entity.OrderStatus;
@@ -33,6 +34,7 @@ class OrderEmailSourceRepositoryTest {
 
     private User user;
     private ConnectedAccount account;
+    private Company company;
 
     @BeforeEach
     void setUp() {
@@ -48,6 +50,11 @@ class OrderEmailSourceRepositoryTest {
         account.setSyncStatus(ConnectedAccountSyncStatus.SYNCED);
         account.setUser(user);
         entityManager.persist(account);
+
+        company = new Company();
+        company.setBrandName("Amazon");
+        entityManager.persist(company);
+
         entityManager.flush();
     }
 
@@ -62,7 +69,7 @@ class OrderEmailSourceRepositoryTest {
     }
 
     @Test
-    void rejectsDuplicateOrderIdentityForTheSameUserAndMerchant() {
+    void rejectsDuplicateOrderIdentityForTheSameUserAndCompany() {
         orderRepository.saveAndFlush(order());
 
         assertThrows(
@@ -72,9 +79,9 @@ class OrderEmailSourceRepositoryTest {
     }
 
     @Test
-    void allowsLegacyOrderWithoutMerchantUntilItCanBeBackfilled() {
+    void allowsLegacyOrderWithoutCompanyUntilItCanBeBackfilled() {
         Order legacyOrder = order();
-//        legacyOrder.setMerchantKey(null);
+        legacyOrder.setCompany(null);
 
         assertDoesNotThrow(() -> orderRepository.saveAndFlush(legacyOrder));
     }
@@ -92,7 +99,7 @@ class OrderEmailSourceRepositoryTest {
     private Order order() {
         Order order = new Order();
         order.setUser(user);
-//        order.setMerchantKey("amazon.in");
+        order.setCompany(company);
         order.setOrderNo("ORDER-123");
         order.setStatus(OrderStatus.CONFIRMED);
         return order;

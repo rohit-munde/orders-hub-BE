@@ -45,11 +45,10 @@ public class GmailOrderParser {
     public List<GmailOrderPreview> parseAll(GmailMessageContent message) {
         String body = valueOrEmpty(message.body());
         String searchableText = valueOrEmpty(message.subject()) + "\n" + body;
-        String merchantKey = merchantKey(message.from());
         List<OrderMatch> orderMatches = orderMatches(body);
 
         if (orderMatches.isEmpty()) {
-            return List.of(preview(message, merchantKey, null, body, searchableText));
+            return List.of(preview(message, null, body, searchableText));
         }
 
         List<GmailOrderPreview> previews = new ArrayList<>();
@@ -57,23 +56,21 @@ public class GmailOrderParser {
             OrderMatch orderMatch = orderMatches.get(i);
             int sectionEnd = i + 1 < orderMatches.size() ? orderMatches.get(i + 1).start() : body.length();
             String orderSection = body.substring(orderMatch.start(), sectionEnd);
-            previews.add(preview(message, merchantKey, orderMatch.orderNo(), orderSection, searchableText));
+            previews.add(preview(message, orderMatch.orderNo(), orderSection, searchableText));
         }
         return List.copyOf(previews);
     }
 
     private GmailOrderPreview preview(
             GmailMessageContent message,
-            String merchantKey,
             String orderNo,
             String amountText,
             String searchableText
     ) {
-        Amount amount = amount(amountText, merchantKey);
+        Amount amount = amount(amountText, senderDomain(message.from()));
 
         return new GmailOrderPreview(
                 message.gmailMessageId(),
-                merchantKey,
                 brandName(message.from()),
                 orderNo,
                 amount.value(),
@@ -104,7 +101,7 @@ public class GmailOrderParser {
         return domain.find() ? domain.group(1).toLowerCase(Locale.ROOT) : sender.trim();
     }
 
-    private String merchantKey(String sender) {
+    private String senderDomain(String sender) {
         if (sender == null) {
             return null;
         }
@@ -112,13 +109,13 @@ public class GmailOrderParser {
         return domain.find() ? domain.group(1).toLowerCase(Locale.ROOT) : null;
     }
 
-    private Amount amount(String body, String merchantKey) {
+    private Amount amount(String body, String senderDomain) {
         Matcher matcher = BILL_AMOUNT.matcher(body);
         if (!matcher.find()) {
             return new Amount(null, null);
         }
         String marker = matcher.group(1);
-        String currency = marker == null ? inferredCurrency(merchantKey) : switch (marker.toUpperCase(Locale.ROOT)) {
+        String currency = marker == null ? inferredCurrency(senderDomain) : switch (marker.toUpperCase(Locale.ROOT)) {
             case "USD", "$" -> "USD";
             default -> "INR";
         };
@@ -128,8 +125,8 @@ public class GmailOrderParser {
         );
     }
 
-    private String inferredCurrency(String merchantKey) {
-        return merchantKey != null && merchantKey.endsWith(".in") ? "INR" : null;
+    private String inferredCurrency(String domain) {
+        return domain != null && domain.endsWith(".in") ? "INR" : null;
     }
 
     private Boolean paymentState(String text) {

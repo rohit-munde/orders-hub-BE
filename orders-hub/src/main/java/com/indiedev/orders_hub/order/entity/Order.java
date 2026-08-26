@@ -66,10 +66,10 @@ public class Order extends BaseEntity {
     @BatchSize(size = 50)
     private List<OrderItem> orderItems = new ArrayList<>();
 
-    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @ManyToOne(fetch = FetchType.EAGER, cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     @JoinColumn(
             name = "company_id",
-            nullable = false,
+            nullable = true,
             foreignKey = @ForeignKey(name = "fk_orders_company")
     )
     private Company company;

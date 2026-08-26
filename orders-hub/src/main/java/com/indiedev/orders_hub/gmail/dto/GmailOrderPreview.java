@@ -8,7 +8,6 @@ import java.util.List;
 
 public record GmailOrderPreview(
         String gmailMessageId,
-        String merchantKey,
         String brandName,
         String orderNo,
         BigDecimal billAmount,

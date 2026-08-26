@@ -14,13 +14,12 @@ public class Company extends BaseEntity {
     @GeneratedValue(strategy = jakarta.persistence.GenerationType.IDENTITY)
     private long id;
 
-    @Column(unique = true, nullable = false, length = 255)
+    @Column(length = 255)
     private String brandName;
 
     @Column(name = "logo_url", length = 2048)
     private String logoUrl;
 
-    @Column(name = "domain_name",unique = true, nullable = false, length = 1024)
+    @Column(name = "domain_name", length = 1024)
     private String domainName;
-
 }

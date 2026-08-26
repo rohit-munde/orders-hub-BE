@@ -39,8 +39,7 @@ public class OrderQueryService {
     private OrderListResponse.OrderResponse toResponse(Order order) {
         return new OrderListResponse.OrderResponse(
                 order.getId(),
-                order.getCompany().getBrandName(),
-                order.getCompany().getBrandName(),
+                order.getCompany() != null ? order.getCompany().getBrandName() : null,
                 order.getOrderNo(),
                 order.getBillAmount(),
                 order.getRefundAmount(),

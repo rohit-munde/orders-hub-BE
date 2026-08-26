@@ -65,7 +65,6 @@ class OrderControllerTest {
                 new PageResponse<>(
                         List.of(new OrderListResponse.OrderResponse(
                                 21,
-                                "amazon.in",
                                 "Amazon",
                                 "ORDER-123",
                                 new BigDecimal("1499.00"),

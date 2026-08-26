@@ -5,6 +5,7 @@ import com.indiedev.orders_hub.connectedaccount.entity.ConnectedAccountProvider;
 import com.indiedev.orders_hub.connectedaccount.repository.ConnectedAccountRepository;
 import com.indiedev.orders_hub.connectedaccount.entity.ConnectedAccountSyncStatus;
 import com.indiedev.orders_hub.gmail.dto.GmailOrderPreview;
+import com.indiedev.orders_hub.order.entity.Company;
 import com.indiedev.orders_hub.order.entity.Order;
 import com.indiedev.orders_hub.order.repository.OrderRepository;
 import com.indiedev.orders_hub.order.entity.OrderStatus;
@@ -27,7 +28,6 @@ import java.util.concurrent.Future;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 
 @DataJpaTest
 @Import(GmailOrderImportService.class)
@@ -98,8 +98,8 @@ class GmailOrderImportConcurrencyTest {
             executor.shutdownNow();
         }
 
-        Order saved = orderRepository.findByUserIdAndMerchantKeyAndOrderNo(
-                user.getId(), "amazon.in", "ORDER-123"
+        Order saved = orderRepository.findByUserIdAndCompanyBrandNameAndOrderNo(
+                user.getId(), "Amazon", "ORDER-123"
         ).orElseThrow();
         assertEquals(1, orderRepository.count());
         assertEquals(OrderStatus.DELIVERED, saved.getStatus());
@@ -134,14 +134,15 @@ class GmailOrderImportConcurrencyTest {
 
         Order legacyOrder = new Order();
         legacyOrder.setUser(user);
-        legacyOrder.getCompany().setBrandName("Unknown legacy merchant");
+        Company legacyCompany = new Company();
+        legacyCompany.setBrandName("Unknown legacy merchant");
+        legacyOrder.setCompany(legacyCompany);
         legacyOrder.setOrderNo("COLLISION-123");
         legacyOrder.setStatus(OrderStatus.CONFIRMED);
         legacyOrder = orderRepository.saveAndFlush(legacyOrder);
 
         GmailOrderPreview candidate = new GmailOrderPreview(
                 "message-new-merchant",
-                "amazon.in",
                 "Amazon",
                 "COLLISION-123",
                 null,
@@ -157,15 +158,14 @@ class GmailOrderImportConcurrencyTest {
         );
 
         Order unchangedLegacy = orderRepository.findById(legacyOrder.getId()).orElseThrow();
-        assertNull(unchangedLegacy.getCompany().getBrandName());
-        assertEquals("amazon.in", result.order().getCompany().getBrandName());
+        assertEquals("Unknown legacy merchant", unchangedLegacy.getCompany().getBrandName());
+        assertEquals("Amazon", result.order().getCompany().getBrandName());
         assertNotEquals(legacyOrder.getId(), result.order().getId());
     }
 
     private GmailOrderPreview candidate(String messageId, OrderStatus status) {
         return new GmailOrderPreview(
                 messageId,
-                "amazon.in",
                 "Amazon",
                 "ORDER-123",
                 null,

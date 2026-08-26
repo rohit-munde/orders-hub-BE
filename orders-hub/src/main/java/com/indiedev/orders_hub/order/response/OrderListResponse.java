@@ -13,7 +13,6 @@ public record OrderListResponse(
 ) {
     public record OrderResponse(
             long id,
-            String merchantKey,
             String brandName,
             String orderNo,
             BigDecimal billAmount,

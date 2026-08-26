@@ -3,6 +3,7 @@ package com.indiedev.orders_hub.order.service;
 import com.indiedev.orders_hub.connectedaccount.entity.ConnectedAccount;
 import com.indiedev.orders_hub.connectedaccount.entity.ConnectedAccountProvider;
 import com.indiedev.orders_hub.connectedaccount.repository.ConnectedAccountRepository;
+import com.indiedev.orders_hub.order.entity.Company;
 import com.indiedev.orders_hub.order.entity.Order;
 import com.indiedev.orders_hub.order.entity.OrderItem;
 import com.indiedev.orders_hub.order.repository.OrderRepository;
@@ -69,7 +70,6 @@ class OrderQueryServiceTest {
         assertTrue(response.orders().pagination().hasPrevious());
         OrderListResponse.OrderResponse mapped = response.orders().content().getFirst();
         assertEquals(21, mapped.id());
-        assertEquals("amazon.in", mapped.merchantKey());
         assertEquals("Amazon", mapped.brandName());
         assertEquals("ORDER-123", mapped.orderNo());
         assertEquals(new BigDecimal("1499.00"), mapped.billAmount());
@@ -121,8 +121,9 @@ class OrderQueryServiceTest {
     private Order order(Instant placedAt) {
         Order order = new Order();
         order.setId(21);
-//        order.setMerchantKey("amazon.in");
-        order.getCompany().setBrandName("Amazon");
+        Company company = new Company();
+        company.setBrandName("Amazon");
+        order.setCompany(company);
         order.setOrderNo("ORDER-123");
         order.setBillAmount(new BigDecimal("1499.00"));
         order.setCurrency("INR");

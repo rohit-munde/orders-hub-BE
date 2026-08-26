@@ -61,7 +61,6 @@ class OrderRepositoryOrderingTest {
     private Order save(User user, String orderNo, Instant placedAt) {
         Order order = new Order();
         order.setUser(user);
-//        order.setMerchantKey("amazon.in");
         order.setOrderNo(orderNo);
         order.setStatus(OrderStatus.CONFIRMED);
         order.setPlacedAt(placedAt);
