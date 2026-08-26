@@ -103,7 +103,7 @@ class ConnectedAccountServiceDataJpaTest {
     private Order order(User user, String orderNo) {
         Order order = new Order();
         order.setUser(user);
-        order.setMerchantKey("amazon.in");
+//        order.setMerchantKey("amazon.in");
         order.setOrderNo(orderNo);
         order.setStatus(OrderStatus.CONFIRMED);
         return order;

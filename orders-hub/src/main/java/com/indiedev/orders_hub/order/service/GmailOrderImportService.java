@@ -154,7 +154,7 @@ public class GmailOrderImportService {
     private boolean representsOrder(OrderEmailSource source, String merchantKey, String orderNo) {
         Order order = source.getOrder();
         return order != null
-                && merchantKey.equals(order.getMerchantKey())
+//                && merchantKey.equals(order.getMerchantKey())
                 && orderNo.equals(order.getOrderNo());
     }
 
@@ -188,15 +188,15 @@ public class GmailOrderImportService {
     private Order newOrder(ConnectedAccount account, String merchantKey, String orderNo) {
         Order order = new Order();
         order.setUser(account.getUser());
-        order.setMerchantKey(merchantKey);
+//        order.setMerchantKey(merchantKey);
         order.setOrderNo(orderNo);
         order.setStatus(OrderStatus.UNKNOWN);
         return order;
     }
 
     private void merge(Order order, GmailOrderPreview candidate) {
-        if (!StringUtils.hasText(order.getBrandName()) && StringUtils.hasText(candidate.brandName())) {
-            order.setBrandName(candidate.brandName().strip());
+        if (!StringUtils.hasText(order.getCompany().getBrandName()) && StringUtils.hasText(candidate.brandName())) {
+            order.getCompany().setBrandName(candidate.brandName().strip());
         }
         if (candidate.status() == OrderStatus.REFUNDED) {
             if (candidate.billAmount() != null) {

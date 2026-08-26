@@ -65,7 +65,7 @@ class GmailOrderImportServiceTest {
         GmailOrderImportService.ImportResult result = service.importOrder(account, "message-1", candidate, 1);
 
         assertEquals(SAVED, result.outcome());
-        assertEquals("amazon.in", result.order().getMerchantKey());
+        assertEquals("amazon.in", result.order().getCompany().getBrandName());
         assertEquals("ORDER-123", result.order().getOrderNo());
         assertEquals(new BigDecimal("1499.00"), result.order().getBillAmount());
         assertEquals("INR", result.order().getCurrency());
@@ -88,7 +88,7 @@ class GmailOrderImportServiceTest {
     void importsDifferentOrderNumbersFromTheSameGmailMessage() {
         Order firstOrder = new Order();
         firstOrder.setUser(account.getUser());
-        firstOrder.setMerchantKey("amazon.in");
+//        firstOrder.setMerchantKey("amazon.in");
         firstOrder.setOrderNo("407-1111111-1111111");
         firstOrder.setStatus(OrderStatus.CONFIRMED);
         OrderEmailSource existingMessageSource = source(OrderEmailProcessingStatus.IMPORTED, 6);
@@ -133,9 +133,9 @@ class GmailOrderImportServiceTest {
     void enrichesExistingOrderWithoutErasingKnownValuesOrRegressingStatus() {
         Order existing = new Order();
         existing.setUser(account.getUser());
-        existing.setMerchantKey("amazon.in");
+//        existing.setMerchantKey("amazon.in");
         existing.setOrderNo("ORDER-123");
-        existing.setBrandName("Amazon Store");
+        existing.getCompany().setBrandName("Amazon Store");
         existing.setBillAmount(new BigDecimal("1499.00"));
         existing.setCurrency("INR");
         existing.setPaid(false);
@@ -153,7 +153,7 @@ class GmailOrderImportServiceTest {
         GmailOrderImportService.ImportResult result = service.importOrder(account, "message-2", candidate, 1);
 
         assertSame(existing, result.order());
-        assertEquals("Amazon Store", existing.getBrandName());
+        assertEquals("Amazon Store", existing.getCompany().getBrandName());
         assertEquals(new BigDecimal("1499.00"), existing.getBillAmount());
         assertEquals("INR", existing.getCurrency());
         assertEquals(Boolean.TRUE, existing.getPaid());
@@ -230,7 +230,7 @@ class GmailOrderImportServiceTest {
         Order staleOrder = new Order();
         staleOrder.setId(21);
         staleOrder.setUser(account.getUser());
-        staleOrder.setMerchantKey("coinsstuff.com");
+//        staleOrder.setMerchantKey("coinsstuff.com");
         staleOrder.setOrderNo("PLEASE");
         staleOrder.setStatus(OrderStatus.UNKNOWN);
         OrderEmailSource existingSource = source(OrderEmailProcessingStatus.IMPORTED, 6);
@@ -261,7 +261,7 @@ class GmailOrderImportServiceTest {
         Order staleOrder = new Order();
         staleOrder.setId(22);
         staleOrder.setUser(account.getUser());
-        staleOrder.setMerchantKey("coinsstuff.com");
+//        staleOrder.setMerchantKey("coinsstuff.com");
         staleOrder.setOrderNo("PLEASE");
         staleOrder.setStatus(OrderStatus.UNKNOWN);
         OrderEmailSource existingSource = source(OrderEmailProcessingStatus.IMPORTED, 6);
@@ -285,7 +285,7 @@ class GmailOrderImportServiceTest {
         Order staleOrder = new Order();
         staleOrder.setId(23);
         staleOrder.setUser(account.getUser());
-        staleOrder.setMerchantKey("coinsstuff.com");
+//        staleOrder.setMerchantKey("coinsstuff.com");
         staleOrder.setOrderNo("PLEASE");
         staleOrder.setStatus(OrderStatus.UNKNOWN);
         OrderEmailSource existingSource = source(OrderEmailProcessingStatus.IMPORTED, 7);
@@ -337,7 +337,7 @@ class GmailOrderImportServiceTest {
     void addsParsedItemsOnlyWhenTheOrderHasNone() {
         Order existing = new Order();
         existing.setUser(account.getUser());
-        existing.setMerchantKey("amazon.in");
+//        existing.setMerchantKey("amazon.in");
         existing.setOrderNo("ORDER-123");
         existing.setStatus(OrderStatus.CONFIRMED);
         GmailOrderPreview candidate = new GmailOrderPreview(
@@ -477,7 +477,7 @@ class GmailOrderImportServiceTest {
     void importsRefundEmailAndUpdatesStatusAndTimestampToRefunded() {
         Order existing = new Order();
         existing.setUser(account.getUser());
-        existing.setMerchantKey("amazon.in");
+//        existing.setMerchantKey("amazon.in");
         existing.setOrderNo("407-3385584-8184336");
         existing.setPlacedAt(Instant.parse("2026-08-01T10:00:00Z"));
         existing.setStatus(OrderStatus.DELIVERED);
@@ -508,7 +508,7 @@ class GmailOrderImportServiceTest {
     private Order existingOrder(Instant placedAt) {
         Order order = new Order();
         order.setUser(account.getUser());
-        order.setMerchantKey("amazon.in");
+//        order.setMerchantKey("amazon.in");
         order.setOrderNo("ORDER-123");
         order.setStatus(OrderStatus.CONFIRMED);
         order.setPlacedAt(placedAt);

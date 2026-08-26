@@ -121,8 +121,8 @@ class OrderQueryServiceTest {
     private Order order(Instant placedAt) {
         Order order = new Order();
         order.setId(21);
-        order.setMerchantKey("amazon.in");
-        order.setBrandName("Amazon");
+//        order.setMerchantKey("amazon.in");
+        order.getCompany().setBrandName("Amazon");
         order.setOrderNo("ORDER-123");
         order.setBillAmount(new BigDecimal("1499.00"));
         order.setCurrency("INR");

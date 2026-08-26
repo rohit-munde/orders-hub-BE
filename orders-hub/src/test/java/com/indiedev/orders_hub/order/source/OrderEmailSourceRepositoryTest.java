@@ -74,7 +74,7 @@ class OrderEmailSourceRepositoryTest {
     @Test
     void allowsLegacyOrderWithoutMerchantUntilItCanBeBackfilled() {
         Order legacyOrder = order();
-        legacyOrder.setMerchantKey(null);
+//        legacyOrder.setMerchantKey(null);
 
         assertDoesNotThrow(() -> orderRepository.saveAndFlush(legacyOrder));
     }
@@ -92,7 +92,7 @@ class OrderEmailSourceRepositoryTest {
     private Order order() {
         Order order = new Order();
         order.setUser(user);
-        order.setMerchantKey("amazon.in");
+//        order.setMerchantKey("amazon.in");
         order.setOrderNo("ORDER-123");
         order.setStatus(OrderStatus.CONFIRMED);
         return order;
