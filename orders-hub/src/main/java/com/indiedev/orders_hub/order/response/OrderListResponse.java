@@ -15,6 +15,7 @@ public record OrderListResponse(
             long id,
             String brandName,
             String orderNo,
+            String logoUrl,
             BigDecimal billAmount,
             BigDecimal refundAmount,
             String currency,

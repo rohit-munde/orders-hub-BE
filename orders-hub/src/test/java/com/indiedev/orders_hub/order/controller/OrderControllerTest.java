@@ -67,6 +67,7 @@ class OrderControllerTest {
                                 21,
                                 "Amazon",
                                 "ORDER-123",
+                                "https://example.com/logo.png",
                                 new BigDecimal("1499.00"),
                                 null,
                                 "INR",
