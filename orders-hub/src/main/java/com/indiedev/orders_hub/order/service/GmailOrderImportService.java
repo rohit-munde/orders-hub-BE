@@ -5,6 +5,7 @@ import com.indiedev.orders_hub.gmail.dto.GmailOrderPreview;
 import com.indiedev.orders_hub.order.entity.Company;
 import com.indiedev.orders_hub.order.entity.Order;
 import com.indiedev.orders_hub.order.entity.OrderItem;
+import com.indiedev.orders_hub.order.event.CompanyCreatedEvent;
 import com.indiedev.orders_hub.order.repository.OrderRepository;
 import com.indiedev.orders_hub.order.entity.OrderStatus;
 import com.indiedev.orders_hub.order.source.OrderEmailProcessingStatus;
@@ -12,6 +13,7 @@ import com.indiedev.orders_hub.order.source.OrderEmailSource;
 import com.indiedev.orders_hub.order.source.OrderEmailSourceRepository;
 import com.indiedev.orders_hub.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -19,6 +21,7 @@ import org.springframework.util.StringUtils;
 import java.time.Instant;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service
 @RequiredArgsConstructor
@@ -31,6 +34,7 @@ public class GmailOrderImportService {
     private final OrderRepository orderRepository;
     private final OrderEmailSourceRepository sourceRepository;
     private final UserRepository userRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional(readOnly = true)
     public boolean shouldProcess(long accountId, String gmailMessageId, int parserVersion) {
@@ -85,6 +89,7 @@ public class GmailOrderImportService {
         }
 
         Order staleOrder = existingSource.map(OrderEmailSource::getOrder).orElse(null);
+        AtomicBoolean createdNewCompany = new AtomicBoolean(false);
         Order order = existingSource
                 .filter(source -> representsOrder(source, orderNo))
                 .map(OrderEmailSource::getOrder)
@@ -93,9 +98,21 @@ public class GmailOrderImportService {
                         : orderRepository.findByUserIdAndCompanyBrandNameAndOrderNo(
                                 account.getUser().getId(), brandName, orderNo
                         )))
-                .orElseGet(() -> newOrder(account, brandName, orderNo));
+                .orElseGet(() -> {
+                    createdNewCompany.set(true);
+                    return newOrder(account, brandName, orderNo);
+                });
         merge(order, candidate);
         order = orderRepository.save(order);
+
+        if (createdNewCompany.get() && order.getCompany() != null && order.getCompany().getId() != 0) {
+            eventPublisher.publishEvent(new CompanyCreatedEvent(
+                    order.getCompany().getId(),
+                    brandName,
+                    null,
+                    null
+            ));
+        }
 
         saveSource(
                 existingSource.orElseGet(OrderEmailSource::new),

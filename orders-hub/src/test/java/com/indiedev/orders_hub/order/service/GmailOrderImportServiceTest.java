@@ -4,6 +4,7 @@ import com.indiedev.orders_hub.connectedaccount.entity.ConnectedAccount;
 import com.indiedev.orders_hub.gmail.dto.GmailOrderPreview;
 import com.indiedev.orders_hub.order.entity.Company;
 import com.indiedev.orders_hub.order.entity.Order;
+import com.indiedev.orders_hub.order.event.CompanyCreatedEvent;
 import com.indiedev.orders_hub.order.repository.OrderRepository;
 import com.indiedev.orders_hub.order.entity.OrderStatus;
 import com.indiedev.orders_hub.order.source.OrderEmailProcessingStatus;
@@ -13,6 +14,7 @@ import com.indiedev.orders_hub.user.entity.User;
 import com.indiedev.orders_hub.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 
@@ -31,6 +33,7 @@ class GmailOrderImportServiceTest {
     private OrderRepository orderRepository;
     private OrderEmailSourceRepository sourceRepository;
     private UserRepository userRepository;
+    private ApplicationEventPublisher eventPublisher;
     private GmailOrderImportService service;
     private ConnectedAccount account;
 
@@ -39,12 +42,13 @@ class GmailOrderImportServiceTest {
         orderRepository = mock(OrderRepository.class);
         sourceRepository = mock(OrderEmailSourceRepository.class);
         userRepository = mock(UserRepository.class);
+        eventPublisher = mock(ApplicationEventPublisher.class);
 
         User user = new User();
         user.setId(7);
         user.setEmail("shopper@example.com");
         when(userRepository.findByIdForUpdate(7)).thenReturn(Optional.of(user));
-        service = new GmailOrderImportService(orderRepository, sourceRepository, userRepository);
+        service = new GmailOrderImportService(orderRepository, sourceRepository, userRepository, eventPublisher);
         account = new ConnectedAccount();
         account.setId(11);
         account.setUser(user);
@@ -186,6 +190,26 @@ class GmailOrderImportServiceTest {
 
         assertEquals(later, existing.getPlacedAt());
         assertEquals(OrderStatus.SHIPPED, existing.getStatus());
+    }
+
+    @Test
+    void doesNotPublishCompanyCreatedEventWhenExistingCompanyIsReused() {
+        Order existing = existingOrder(Instant.parse("2026-08-02T12:30:00Z"));
+        existing.setId(42);
+        existing.getCompany().setId(24);
+        GmailOrderPreview candidate = candidate(
+                "message-existing-company", "Amazon", "ORDER-123",
+                null, null, null, null, OrderStatus.CONFIRMED
+        );
+        when(sourceRepository.findByConnectedAccountIdAndGmailMessageId(11, "message-existing-company"))
+                .thenReturn(Optional.empty());
+        when(orderRepository.findByUserIdAndCompanyBrandNameAndOrderNo(7, "Amazon", "ORDER-123"))
+                .thenReturn(Optional.of(existing));
+        when(orderRepository.save(existing)).thenReturn(existing);
+
+        service.importOrder(account, "message-existing-company", candidate, 2);
+
+        verify(eventPublisher, never()).publishEvent(any(CompanyCreatedEvent.class));
     }
 
     @Test
