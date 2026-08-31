@@ -123,7 +123,6 @@ class GmailSyncServiceTest {
     private GmailOrderPreview candidate(String gmailMessageId, String orderNo) {
         return new GmailOrderPreview(
                 gmailMessageId,
-                "amazon.in",
                 "Amazon",
                 orderNo,
                 null,

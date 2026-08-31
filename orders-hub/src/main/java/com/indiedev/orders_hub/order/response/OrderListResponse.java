@@ -13,9 +13,9 @@ public record OrderListResponse(
 ) {
     public record OrderResponse(
             long id,
-            String merchantKey,
             String brandName,
             String orderNo,
+            String logoUrl,
             BigDecimal billAmount,
             BigDecimal refundAmount,
             String currency,

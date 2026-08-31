@@ -2,8 +2,10 @@ package com.indiedev.orders_hub.order.service;
 
 import com.indiedev.orders_hub.connectedaccount.entity.ConnectedAccount;
 import com.indiedev.orders_hub.gmail.dto.GmailOrderPreview;
+import com.indiedev.orders_hub.order.entity.Company;
 import com.indiedev.orders_hub.order.entity.Order;
 import com.indiedev.orders_hub.order.entity.OrderItem;
+import com.indiedev.orders_hub.order.event.CompanyCreatedEvent;
 import com.indiedev.orders_hub.order.repository.OrderRepository;
 import com.indiedev.orders_hub.order.entity.OrderStatus;
 import com.indiedev.orders_hub.order.source.OrderEmailProcessingStatus;
@@ -11,6 +13,7 @@ import com.indiedev.orders_hub.order.source.OrderEmailSource;
 import com.indiedev.orders_hub.order.source.OrderEmailSourceRepository;
 import com.indiedev.orders_hub.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -18,18 +21,21 @@ import org.springframework.util.StringUtils;
 import java.time.Instant;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service
 @RequiredArgsConstructor
 public class GmailOrderImportService {
 
-    private static final String INVALID_CANDIDATE = "Missing merchant or order number";
+    private static final String INVALID_CANDIDATE = "Missing order number";
     private static final String MESSAGE_ID_MISMATCH = "Gmail message identity mismatch";
     private static final String IMPORT_FAILURE = "Unable to import Gmail message";
 
     private final OrderRepository orderRepository;
     private final OrderEmailSourceRepository sourceRepository;
     private final UserRepository userRepository;
+    private final ApplicationEventPublisher eventPublisher;
+    private final CompanyMasterService companyMasterService;
 
     @Transactional(readOnly = true)
     public boolean shouldProcess(long accountId, String gmailMessageId, int parserVersion) {
@@ -76,20 +82,38 @@ public class GmailOrderImportService {
             return new ImportResult(Outcome.IGNORED, null);
         }
 
-        String merchantKey = candidate.merchantKey().strip().toLowerCase(Locale.ROOT);
+        String brandName = StringUtils.hasText(candidate.brandName()) ? candidate.brandName().strip() : null;
         String orderNo = candidate.orderNo().strip().toUpperCase(Locale.ROOT);
         if (existingSource.isPresent() && !isRetryable(existingSource.get(), parserVersion)
-                && representsOrder(existingSource.get(), merchantKey, orderNo)) {
+                && representsOrder(existingSource.get(), orderNo)) {
             return new ImportResult(Outcome.SKIPPED, existingSource.get().getOrder());
         }
 
         Order staleOrder = existingSource.map(OrderEmailSource::getOrder).orElse(null);
-        Order order = orderRepository.findByUserIdAndMerchantKeyAndOrderNo(
-                        account.getUser().getId(), merchantKey, orderNo
-                )
-                .orElseGet(() -> newOrder(account, merchantKey, orderNo));
+        AtomicBoolean createdNewCompany = new AtomicBoolean(false);
+        Order order = existingSource
+                .filter(source -> representsOrder(source, orderNo))
+                .map(OrderEmailSource::getOrder)
+                .or(() -> (brandName == null
+                        ? Optional.<Order>empty()
+                        : orderRepository.findByUserIdAndCompanyBrandNameAndOrderNo(
+                                account.getUser().getId(), brandName, orderNo
+                        )))
+                .orElseGet(() -> {
+                    createdNewCompany.set(true);
+                    return newOrder(account, brandName, orderNo, createdNewCompany);
+                });
         merge(order, candidate);
         order = orderRepository.save(order);
+
+        if (createdNewCompany.get() && order.getCompany() != null && order.getCompany().getId() != 0) {
+            eventPublisher.publishEvent(new CompanyCreatedEvent(
+                    order.getCompany().getId(),
+                    brandName,
+                    null,
+                    null
+            ));
+        }
 
         saveSource(
                 existingSource.orElseGet(OrderEmailSource::new),
@@ -147,14 +171,12 @@ public class GmailOrderImportService {
 
     private boolean hasIdentity(GmailOrderPreview candidate) {
         return StringUtils.hasText(candidate.gmailMessageId())
-                && StringUtils.hasText(candidate.merchantKey())
                 && StringUtils.hasText(candidate.orderNo());
     }
 
-    private boolean representsOrder(OrderEmailSource source, String merchantKey, String orderNo) {
+    private boolean representsOrder(OrderEmailSource source, String orderNo) {
         Order order = source.getOrder();
         return order != null
-                && merchantKey.equals(order.getMerchantKey())
                 && orderNo.equals(order.getOrderNo());
     }
 
@@ -185,18 +207,31 @@ public class GmailOrderImportService {
         return first != null && second != null && first.getId() != 0 && first.getId() == second.getId();
     }
 
-    private Order newOrder(ConnectedAccount account, String merchantKey, String orderNo) {
+    private Order newOrder(
+            ConnectedAccount account,
+            String brandName,
+            String orderNo,
+            AtomicBoolean createdNewCompany
+    ) {
         Order order = new Order();
         order.setUser(account.getUser());
-        order.setMerchantKey(merchantKey);
         order.setOrderNo(orderNo);
         order.setStatus(OrderStatus.UNKNOWN);
+        CompanyMasterService.FindOrCreateCompanyResult companyResult =
+                companyMasterService.findOrCreateByBrandName(brandName);
+        createdNewCompany.set(companyResult.created());
+        order.setCompany(companyResult.company());
         return order;
     }
 
     private void merge(Order order, GmailOrderPreview candidate) {
-        if (!StringUtils.hasText(order.getBrandName()) && StringUtils.hasText(candidate.brandName())) {
-            order.setBrandName(candidate.brandName().strip());
+        if (order.getCompany() == null && StringUtils.hasText(candidate.brandName())) {
+            order.setCompany(new Company());
+        }
+        if (order.getCompany() != null
+                && !StringUtils.hasText(order.getCompany().getBrandName())
+                && StringUtils.hasText(candidate.brandName())) {
+            order.getCompany().setBrandName(candidate.brandName().strip());
         }
         if (candidate.status() == OrderStatus.REFUNDED) {
             if (candidate.billAmount() != null) {

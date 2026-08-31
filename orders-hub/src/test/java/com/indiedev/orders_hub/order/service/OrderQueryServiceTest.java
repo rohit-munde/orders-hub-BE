@@ -3,6 +3,7 @@ package com.indiedev.orders_hub.order.service;
 import com.indiedev.orders_hub.connectedaccount.entity.ConnectedAccount;
 import com.indiedev.orders_hub.connectedaccount.entity.ConnectedAccountProvider;
 import com.indiedev.orders_hub.connectedaccount.repository.ConnectedAccountRepository;
+import com.indiedev.orders_hub.order.entity.Company;
 import com.indiedev.orders_hub.order.entity.Order;
 import com.indiedev.orders_hub.order.entity.OrderItem;
 import com.indiedev.orders_hub.order.repository.OrderRepository;
@@ -69,7 +70,6 @@ class OrderQueryServiceTest {
         assertTrue(response.orders().pagination().hasPrevious());
         OrderListResponse.OrderResponse mapped = response.orders().content().getFirst();
         assertEquals(21, mapped.id());
-        assertEquals("amazon.in", mapped.merchantKey());
         assertEquals("Amazon", mapped.brandName());
         assertEquals("ORDER-123", mapped.orderNo());
         assertEquals(new BigDecimal("1499.00"), mapped.billAmount());
@@ -102,6 +102,24 @@ class OrderQueryServiceTest {
     }
 
     @Test
+    void mapsOrderWithoutCompanyWithNullBrandAndLogo() {
+        Order order = order(Instant.parse("2026-08-03T10:00:00Z"));
+        order.setCompany(null);
+        when(orderRepository.findPageForUser(eq(7L), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(order), PageRequest.of(0, 20), 1));
+        when(accountRepository.findFirstByUserIdAndProviderOrderByIdDesc(
+                7, ConnectedAccountProvider.GOOGLE
+        )).thenReturn(Optional.empty());
+
+        OrderListResponse response = service.getOrders(7, PageRequest.of(0, 20));
+
+        OrderListResponse.OrderResponse mapped = response.orders().content().getFirst();
+        assertNull(mapped.brandName());
+        assertNull(mapped.logoUrl());
+        assertEquals("ORDER-123", mapped.orderNo());
+    }
+
+    @Test
     void publicOrderDtosContainNoEmailOrCredentialFields() {
         Set<String> forbidden = Set.of(
                 "otp", "gmailMessageId", "body", "accessToken", "refreshToken"
@@ -121,8 +139,9 @@ class OrderQueryServiceTest {
     private Order order(Instant placedAt) {
         Order order = new Order();
         order.setId(21);
-        order.setMerchantKey("amazon.in");
-        order.setBrandName("Amazon");
+        Company company = new Company();
+        company.setBrandName("Amazon");
+        order.setCompany(company);
         order.setOrderNo("ORDER-123");
         order.setBillAmount(new BigDecimal("1499.00"));
         order.setCurrency("INR");

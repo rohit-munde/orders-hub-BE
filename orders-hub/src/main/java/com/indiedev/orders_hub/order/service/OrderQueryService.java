@@ -25,6 +25,7 @@ public class OrderQueryService {
     @Transactional(readOnly = true)
     public OrderListResponse getOrders(long userId, Pageable pageable) {
         Pageable safePageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
+
         Instant lastSyncedAt = accountRepository
                 .findFirstByUserIdAndProviderOrderByIdDesc(userId, ConnectedAccountProvider.GOOGLE)
                 .map(account -> account.getLastSyncAt())
@@ -39,9 +40,9 @@ public class OrderQueryService {
     private OrderListResponse.OrderResponse toResponse(Order order) {
         return new OrderListResponse.OrderResponse(
                 order.getId(),
-                order.getMerchantKey(),
-                order.getBrandName(),
+                order.getCompany() != null ? order.getCompany().getBrandName() : null,
                 order.getOrderNo(),
+                order.getCompany() != null ? order.getCompany().getLogoUrl() : null,
                 order.getBillAmount(),
                 order.getRefundAmount(),
                 order.getCurrency(),

@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
-import java.util.Locale;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -36,7 +35,6 @@ class GmailOrderParserTest {
         GmailOrderPreview preview = parser.parse(message);
 
         assertEquals("message-1", preview.gmailMessageId());
-        assertEquals("amazon.in", preview.merchantKey());
         assertEquals("Amazon", preview.brandName());
         assertEquals("ORDER-123", preview.orderNo());
         assertEquals(new BigDecimal("1499.00"), preview.billAmount());
@@ -62,7 +60,6 @@ class GmailOrderParserTest {
         GmailOrderPreview preview = parser.parse(message);
 
         assertEquals("shop.example", preview.brandName());
-        assertEquals("shop.example", preview.merchantKey());
         assertNull(preview.orderNo());
         assertNull(preview.billAmount());
         assertNull(preview.currency());
@@ -170,36 +167,6 @@ class GmailOrderParserTest {
     }
 
     @Test
-    void leavesMerchantKeyNullWhenSenderHasNoEmailDomain() {
-        GmailMessageContent message = new GmailMessageContent(
-                "message-5", "Order confirmed", "Amazon", "Order ID: ORDER-500", null
-        );
-
-        GmailOrderPreview preview = parser.parse(message);
-
-        assertNull(preview.merchantKey());
-    }
-
-    @Test
-    void normalizesMerchantDomainIndependentOfSystemLocale() {
-        Locale originalLocale = Locale.getDefault();
-        try {
-            Locale.setDefault(Locale.forLanguageTag("tr-TR"));
-            GmailOrderPreview preview = parser.parse(new GmailMessageContent(
-                    "message-locale",
-                    "Order confirmed",
-                    "Orders <orders@SHOPPING.IN>",
-                    "Order ID: ABC-123",
-                    null
-            ));
-
-            assertEquals("shopping.in", preview.merchantKey());
-        } finally {
-            Locale.setDefault(originalLocale);
-        }
-    }
-
-    @Test
     void parsesRefundEmailToRefundedStatus() {
         GmailMessageContent message = new GmailMessageContent(
                 "message-refund",
@@ -218,7 +185,6 @@ class GmailOrderParserTest {
         GmailOrderPreview preview = parser.parse(message);
 
         assertEquals(OrderStatus.REFUNDED, preview.status());
-        assertEquals("amazon.in", preview.merchantKey());
         assertEquals("407-3385584-8184336", preview.orderNo());
         assertEquals(new BigDecimal("1999.00"), preview.billAmount());
         assertEquals("INR", preview.currency());
@@ -251,7 +217,6 @@ class GmailOrderParserTest {
         assertEquals("407-2222222-2222222", previews.get(1).orderNo());
         assertEquals(new BigDecimal("799.00"), previews.get(1).billAmount());
         assertTrue(previews.stream().allMatch(preview -> "message-multi-order".equals(preview.gmailMessageId())));
-        assertTrue(previews.stream().allMatch(preview -> "amazon.in".equals(preview.merchantKey())));
         assertTrue(previews.stream().allMatch(preview -> receivedAt.equals(preview.placedAt())));
     }
 }

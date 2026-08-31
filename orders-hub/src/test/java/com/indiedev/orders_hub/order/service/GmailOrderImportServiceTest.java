@@ -2,7 +2,9 @@ package com.indiedev.orders_hub.order.service;
 
 import com.indiedev.orders_hub.connectedaccount.entity.ConnectedAccount;
 import com.indiedev.orders_hub.gmail.dto.GmailOrderPreview;
+import com.indiedev.orders_hub.order.entity.Company;
 import com.indiedev.orders_hub.order.entity.Order;
+import com.indiedev.orders_hub.order.event.CompanyCreatedEvent;
 import com.indiedev.orders_hub.order.repository.OrderRepository;
 import com.indiedev.orders_hub.order.entity.OrderStatus;
 import com.indiedev.orders_hub.order.source.OrderEmailProcessingStatus;
@@ -12,6 +14,7 @@ import com.indiedev.orders_hub.user.entity.User;
 import com.indiedev.orders_hub.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 
@@ -30,6 +33,8 @@ class GmailOrderImportServiceTest {
     private OrderRepository orderRepository;
     private OrderEmailSourceRepository sourceRepository;
     private UserRepository userRepository;
+    private ApplicationEventPublisher eventPublisher;
+    private CompanyMasterService companyMasterService;
     private GmailOrderImportService service;
     private ConnectedAccount account;
 
@@ -38,12 +43,26 @@ class GmailOrderImportServiceTest {
         orderRepository = mock(OrderRepository.class);
         sourceRepository = mock(OrderEmailSourceRepository.class);
         userRepository = mock(UserRepository.class);
+        eventPublisher = mock(ApplicationEventPublisher.class);
+        companyMasterService = mock(CompanyMasterService.class);
 
         User user = new User();
         user.setId(7);
         user.setEmail("shopper@example.com");
         when(userRepository.findByIdForUpdate(7)).thenReturn(Optional.of(user));
-        service = new GmailOrderImportService(orderRepository, sourceRepository, userRepository);
+        when(companyMasterService.findOrCreateByBrandName(nullable(String.class)))
+                .thenAnswer(invocation -> {
+                    Company company = new Company();
+                    company.setBrandName(invocation.getArgument(0));
+                    return new CompanyMasterService.FindOrCreateCompanyResult(company, true);
+                });
+        service = new GmailOrderImportService(
+                orderRepository,
+                sourceRepository,
+                userRepository,
+                eventPublisher,
+                companyMasterService
+        );
         account = new ConnectedAccount();
         account.setId(11);
         account.setUser(user);
@@ -53,19 +72,19 @@ class GmailOrderImportServiceTest {
     void createsOrderAndLinksImportedSourceWithoutPersistingOtp() {
         Instant placedAt = Instant.parse("2026-08-02T12:30:00Z");
         GmailOrderPreview candidate = candidate(
-                "message-1", "amazon.in", "Amazon", " order-123 ",
+                "message-1", "Amazon", " order-123 ",
                 new BigDecimal("1499.00"), "INR", true, "482731", OrderStatus.SHIPPED, placedAt
         );
         when(sourceRepository.findByConnectedAccountIdAndGmailMessageId(11, "message-1"))
                 .thenReturn(Optional.empty());
-        when(orderRepository.findByUserIdAndMerchantKeyAndOrderNo(7, "amazon.in", "ORDER-123"))
+        when(orderRepository.findByUserIdAndCompanyBrandNameAndOrderNo(7, "Amazon", "ORDER-123"))
                 .thenReturn(Optional.empty());
         when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         GmailOrderImportService.ImportResult result = service.importOrder(account, "message-1", candidate, 1);
 
         assertEquals(SAVED, result.outcome());
-        assertEquals("amazon.in", result.order().getMerchantKey());
+        assertEquals("Amazon", result.order().getCompany().getBrandName());
         assertEquals("ORDER-123", result.order().getOrderNo());
         assertEquals(new BigDecimal("1499.00"), result.order().getBillAmount());
         assertEquals("INR", result.order().getCurrency());
@@ -88,26 +107,29 @@ class GmailOrderImportServiceTest {
     void importsDifferentOrderNumbersFromTheSameGmailMessage() {
         Order firstOrder = new Order();
         firstOrder.setUser(account.getUser());
-        firstOrder.setMerchantKey("amazon.in");
         firstOrder.setOrderNo("407-1111111-1111111");
         firstOrder.setStatus(OrderStatus.CONFIRMED);
+        Company company1 = new Company();
+        company1.setBrandName("Amazon");
+        firstOrder.setCompany(company1);
+
         OrderEmailSource existingMessageSource = source(OrderEmailProcessingStatus.IMPORTED, 6);
         existingMessageSource.setOrder(firstOrder);
         GmailOrderPreview first = candidate(
-                "message-with-two-orders", "amazon.in", "Amazon", "407-1111111-1111111",
+                "message-with-two-orders", "Amazon", "407-1111111-1111111",
                 new BigDecimal("499.00"), "INR", true, null, OrderStatus.CONFIRMED
         );
         GmailOrderPreview second = candidate(
-                "message-with-two-orders", "amazon.in", "Amazon", "407-2222222-2222222",
+                "message-with-two-orders", "Amazon", "407-2222222-2222222",
                 new BigDecimal("799.00"), "INR", true, null, OrderStatus.CONFIRMED
         );
         when(sourceRepository.findByConnectedAccountIdAndGmailMessageId(11, "message-with-two-orders"))
                 .thenReturn(Optional.empty(), Optional.of(existingMessageSource));
-        when(orderRepository.findByUserIdAndMerchantKeyAndOrderNo(
-                7, "amazon.in", "407-1111111-1111111"
+        when(orderRepository.findByUserIdAndCompanyBrandNameAndOrderNo(
+                7, "Amazon", "407-1111111-1111111"
         )).thenReturn(Optional.empty());
-        when(orderRepository.findByUserIdAndMerchantKeyAndOrderNo(
-                7, "amazon.in", "407-2222222-2222222"
+        when(orderRepository.findByUserIdAndCompanyBrandNameAndOrderNo(
+                7, "Amazon", "407-2222222-2222222"
         )).thenReturn(Optional.empty());
         when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -133,27 +155,28 @@ class GmailOrderImportServiceTest {
     void enrichesExistingOrderWithoutErasingKnownValuesOrRegressingStatus() {
         Order existing = new Order();
         existing.setUser(account.getUser());
-        existing.setMerchantKey("amazon.in");
         existing.setOrderNo("ORDER-123");
-        existing.setBrandName("Amazon Store");
+        Company company = new Company();
+        company.setBrandName("Amazon Store");
+        existing.setCompany(company);
         existing.setBillAmount(new BigDecimal("1499.00"));
         existing.setCurrency("INR");
         existing.setPaid(false);
         existing.setStatus(OrderStatus.DELIVERED);
         GmailOrderPreview candidate = candidate(
-                "message-2", "amazon.in", null, "ORDER-123",
+                "message-2", null, "ORDER-123",
                 null, null, true, "999999", OrderStatus.SHIPPED
         );
+        OrderEmailSource existingSource = source(OrderEmailProcessingStatus.IMPORTED, 1);
+        existingSource.setOrder(existing);
         when(sourceRepository.findByConnectedAccountIdAndGmailMessageId(11, "message-2"))
-                .thenReturn(Optional.empty());
-        when(orderRepository.findByUserIdAndMerchantKeyAndOrderNo(7, "amazon.in", "ORDER-123"))
-                .thenReturn(Optional.of(existing));
+                .thenReturn(Optional.of(existingSource));
         when(orderRepository.save(existing)).thenReturn(existing);
 
-        GmailOrderImportService.ImportResult result = service.importOrder(account, "message-2", candidate, 1);
+        GmailOrderImportService.ImportResult result = service.importOrder(account, "message-2", candidate, 2);
 
         assertSame(existing, result.order());
-        assertEquals("Amazon Store", existing.getBrandName());
+        assertEquals("Amazon Store", existing.getCompany().getBrandName());
         assertEquals(new BigDecimal("1499.00"), existing.getBillAmount());
         assertEquals("INR", existing.getCurrency());
         assertEquals(Boolean.TRUE, existing.getPaid());
@@ -167,13 +190,13 @@ class GmailOrderImportServiceTest {
         Order existing = existingOrder(original);
         Instant later = Instant.parse("2026-08-03T12:30:00Z");
         GmailOrderPreview laterEmail = candidate(
-                "message-later", "amazon.in", "Amazon", "ORDER-123",
+                "message-later", "Amazon", "ORDER-123",
                 null, null, null, null, OrderStatus.SHIPPED,
                 later
         );
         when(sourceRepository.findByConnectedAccountIdAndGmailMessageId(11, "message-later"))
                 .thenReturn(Optional.empty());
-        when(orderRepository.findByUserIdAndMerchantKeyAndOrderNo(7, "amazon.in", "ORDER-123"))
+        when(orderRepository.findByUserIdAndCompanyBrandNameAndOrderNo(7, "Amazon", "ORDER-123"))
                 .thenReturn(Optional.of(existing));
         when(orderRepository.save(existing)).thenReturn(existing);
 
@@ -184,18 +207,38 @@ class GmailOrderImportServiceTest {
     }
 
     @Test
+    void doesNotPublishCompanyCreatedEventWhenExistingCompanyIsReused() {
+        Order existing = existingOrder(Instant.parse("2026-08-02T12:30:00Z"));
+        existing.setId(42);
+        existing.getCompany().setId(24);
+        GmailOrderPreview candidate = candidate(
+                "message-existing-company", "Amazon", "ORDER-123",
+                null, null, null, null, OrderStatus.CONFIRMED
+        );
+        when(sourceRepository.findByConnectedAccountIdAndGmailMessageId(11, "message-existing-company"))
+                .thenReturn(Optional.empty());
+        when(orderRepository.findByUserIdAndCompanyBrandNameAndOrderNo(7, "Amazon", "ORDER-123"))
+                .thenReturn(Optional.of(existing));
+        when(orderRepository.save(existing)).thenReturn(existing);
+
+        service.importOrder(account, "message-existing-company", candidate, 2);
+
+        verify(eventPublisher, never()).publishEvent(any(CompanyCreatedEvent.class));
+    }
+
+    @Test
     void doesNotOverwriteWithAnOlderOrderEmail() {
         Instant original = Instant.parse("2026-08-02T12:30:00Z");
         Order existing = existingOrder(original);
         existing.setStatus(OrderStatus.SHIPPED);
         Instant earlier = Instant.parse("2026-08-01T12:30:00Z");
         GmailOrderPreview earlierEmail = candidate(
-                "message-earlier", "amazon.in", "Amazon", "ORDER-123",
+                "message-earlier", "Amazon", "ORDER-123",
                 null, null, null, null, OrderStatus.CONFIRMED, earlier
         );
         when(sourceRepository.findByConnectedAccountIdAndGmailMessageId(11, "message-earlier"))
                 .thenReturn(Optional.empty());
-        when(orderRepository.findByUserIdAndMerchantKeyAndOrderNo(7, "amazon.in", "ORDER-123"))
+        when(orderRepository.findByUserIdAndCompanyBrandNameAndOrderNo(7, "Amazon", "ORDER-123"))
                 .thenReturn(Optional.of(existing));
         when(orderRepository.save(existing)).thenReturn(existing);
 
@@ -208,7 +251,7 @@ class GmailOrderImportServiceTest {
     @Test
     void recordsCandidateWithoutOrderIdentityAsIgnored() {
         GmailOrderPreview candidate = candidate(
-                "message-3", "amazon.in", "Amazon", null,
+                "message-3", "Amazon", null,
                 null, null, null, null, OrderStatus.UNKNOWN
         );
         when(sourceRepository.findByConnectedAccountIdAndGmailMessageId(11, "message-3"))
@@ -222,7 +265,29 @@ class GmailOrderImportServiceTest {
         ArgumentCaptor<OrderEmailSource> source = ArgumentCaptor.forClass(OrderEmailSource.class);
         verify(sourceRepository).save(source.capture());
         assertEquals(OrderEmailProcessingStatus.IGNORED, source.getValue().getProcessingStatus());
-        assertEquals("Missing merchant or order number", source.getValue().getFailureReason());
+        assertEquals("Missing order number", source.getValue().getFailureReason());
+    }
+
+    @Test
+    void importsOrderWithoutBrandWithoutCreatingEmptyCompany() {
+        GmailOrderPreview candidate = candidate(
+                "message-no-brand", "   ", "ORDER-123",
+                null, null, null, null, OrderStatus.CONFIRMED
+        );
+        when(companyMasterService.findOrCreateByBrandName(nullable(String.class)))
+                .thenReturn(new CompanyMasterService.FindOrCreateCompanyResult(null, false));
+        when(sourceRepository.findByConnectedAccountIdAndGmailMessageId(11, "message-no-brand"))
+                .thenReturn(Optional.empty());
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        GmailOrderImportService.ImportResult result = service.importOrder(account, "message-no-brand", candidate, 1);
+
+        assertEquals(SAVED, result.outcome());
+        assertNull(result.order().getCompany());
+        ArgumentCaptor<OrderEmailSource> source = ArgumentCaptor.forClass(OrderEmailSource.class);
+        verify(sourceRepository).save(source.capture());
+        assertSame(result.order(), source.getValue().getOrder());
+        verify(eventPublisher, never()).publishEvent(any(CompanyCreatedEvent.class));
     }
 
     @Test
@@ -230,14 +295,16 @@ class GmailOrderImportServiceTest {
         Order staleOrder = new Order();
         staleOrder.setId(21);
         staleOrder.setUser(account.getUser());
-        staleOrder.setMerchantKey("coinsstuff.com");
+        Company company = new Company();
+        company.setBrandName("coinsstuff.com");
+        staleOrder.setCompany(company);
         staleOrder.setOrderNo("PLEASE");
         staleOrder.setStatus(OrderStatus.UNKNOWN);
         OrderEmailSource existingSource = source(OrderEmailProcessingStatus.IMPORTED, 6);
         existingSource.setId(31);
         existingSource.setOrder(staleOrder);
         GmailOrderPreview reparsedCandidate = candidate(
-                "message-please", "coinsstuff.com", "coinsstuff.com", null,
+                "message-please", "coinsstuff.com", null,
                 new BigDecimal("2900.92"), "INR", null, null, OrderStatus.UNKNOWN
         );
         when(sourceRepository.findByConnectedAccountIdAndGmailMessageId(11, "message-please"))
@@ -261,14 +328,16 @@ class GmailOrderImportServiceTest {
         Order staleOrder = new Order();
         staleOrder.setId(22);
         staleOrder.setUser(account.getUser());
-        staleOrder.setMerchantKey("coinsstuff.com");
+        Company company = new Company();
+        company.setBrandName("coinsstuff.com");
+        staleOrder.setCompany(company);
         staleOrder.setOrderNo("PLEASE");
         staleOrder.setStatus(OrderStatus.UNKNOWN);
         OrderEmailSource existingSource = source(OrderEmailProcessingStatus.IMPORTED, 6);
         existingSource.setId(32);
         existingSource.setOrder(staleOrder);
         GmailOrderPreview reparsedCandidate = candidate(
-                "message-please", "coinsstuff.com", "coinsstuff.com", null,
+                "message-please", "coinsstuff.com", null,
                 new BigDecimal("2900.92"), "INR", null, null, OrderStatus.UNKNOWN
         );
         when(sourceRepository.findByConnectedAccountIdAndGmailMessageId(11, "message-please"))
@@ -285,19 +354,21 @@ class GmailOrderImportServiceTest {
         Order staleOrder = new Order();
         staleOrder.setId(23);
         staleOrder.setUser(account.getUser());
-        staleOrder.setMerchantKey("coinsstuff.com");
+        Company company = new Company();
+        company.setBrandName("coinsstuff.com");
+        staleOrder.setCompany(company);
         staleOrder.setOrderNo("PLEASE");
         staleOrder.setStatus(OrderStatus.UNKNOWN);
         OrderEmailSource existingSource = source(OrderEmailProcessingStatus.IMPORTED, 7);
         existingSource.setId(33);
         existingSource.setOrder(staleOrder);
         GmailOrderPreview correctedCandidate = candidate(
-                "message-please", "coinsstuff.com", "coinsstuff.com", "13456",
+                "message-please", "coinsstuff.com", "13456",
                 new BigDecimal("2796.00"), "INR", null, null, OrderStatus.UNKNOWN
         );
         when(sourceRepository.findByConnectedAccountIdAndGmailMessageId(11, "message-please"))
                 .thenReturn(Optional.of(existingSource));
-        when(orderRepository.findByUserIdAndMerchantKeyAndOrderNo(7, "coinsstuff.com", "13456"))
+        when(orderRepository.findByUserIdAndCompanyBrandNameAndOrderNo(7, "coinsstuff.com", "13456"))
                 .thenReturn(Optional.empty());
         when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(sourceRepository.existsByOrderIdAndIdNot(23, 33)).thenReturn(false);
@@ -314,7 +385,7 @@ class GmailOrderImportServiceTest {
     @Test
     void ignoresMismatchedParsedMessageIdUnderRequestedSourceIdentity() {
         GmailOrderPreview candidate = candidate(
-                "different-message", "amazon.in", "Amazon", "ORDER-123",
+                "different-message", "Amazon", "ORDER-123",
                 null, null, null, null, OrderStatus.CONFIRMED
         );
         when(sourceRepository.findByConnectedAccountIdAndGmailMessageId(11, "requested-message"))
@@ -337,12 +408,13 @@ class GmailOrderImportServiceTest {
     void addsParsedItemsOnlyWhenTheOrderHasNone() {
         Order existing = new Order();
         existing.setUser(account.getUser());
-        existing.setMerchantKey("amazon.in");
         existing.setOrderNo("ORDER-123");
         existing.setStatus(OrderStatus.CONFIRMED);
+        Company company = new Company();
+        company.setBrandName("Amazon");
+        existing.setCompany(company);
         GmailOrderPreview candidate = new GmailOrderPreview(
                 "message-items",
-                "amazon.in",
                 "Amazon",
                 "ORDER-123",
                 null,
@@ -357,7 +429,7 @@ class GmailOrderImportServiceTest {
         );
         when(sourceRepository.findByConnectedAccountIdAndGmailMessageId(11, "message-items"))
                 .thenReturn(Optional.empty());
-        when(orderRepository.findByUserIdAndMerchantKeyAndOrderNo(7, "amazon.in", "ORDER-123"))
+        when(orderRepository.findByUserIdAndCompanyBrandNameAndOrderNo(7, "Amazon", "ORDER-123"))
                 .thenReturn(Optional.of(existing));
         when(orderRepository.save(existing)).thenReturn(existing);
 
@@ -440,7 +512,6 @@ class GmailOrderImportServiceTest {
 
     private GmailOrderPreview candidate(
             String messageId,
-            String merchantKey,
             String brandName,
             String orderNo,
             BigDecimal amount,
@@ -450,14 +521,13 @@ class GmailOrderImportServiceTest {
             OrderStatus status
     ) {
         return candidate(
-                messageId, merchantKey, brandName, orderNo, amount, currency,
+                messageId, brandName, orderNo, amount, currency,
                 paid, otp, status, null
         );
     }
 
     private GmailOrderPreview candidate(
             String messageId,
-            String merchantKey,
             String brandName,
             String orderNo,
             BigDecimal amount,
@@ -468,7 +538,7 @@ class GmailOrderImportServiceTest {
             Instant placedAt
     ) {
         return new GmailOrderPreview(
-                messageId, merchantKey, brandName, orderNo, amount, currency,
+                messageId, brandName, orderNo, amount, currency,
                 paid, otp, status, placedAt, List.of()
         );
     }
@@ -477,21 +547,23 @@ class GmailOrderImportServiceTest {
     void importsRefundEmailAndUpdatesStatusAndTimestampToRefunded() {
         Order existing = new Order();
         existing.setUser(account.getUser());
-        existing.setMerchantKey("amazon.in");
         existing.setOrderNo("407-3385584-8184336");
         existing.setPlacedAt(Instant.parse("2026-08-01T10:00:00Z"));
         existing.setStatus(OrderStatus.DELIVERED);
         existing.setBillAmount(new BigDecimal("2004.00"));
+        Company company = new Company();
+        company.setBrandName("Amazon");
+        existing.setCompany(company);
 
         Instant refundDate = Instant.parse("2026-08-09T12:08:00Z");
         GmailOrderPreview candidate = candidate(
-                "msg-refund-1", "amazon.in", "Amazon", "407-3385584-8184336",
+                "msg-refund-1", "Amazon", "407-3385584-8184336",
                 new BigDecimal("1999.00"), "INR", true, null, OrderStatus.REFUNDED, refundDate
         );
 
         when(sourceRepository.findByConnectedAccountIdAndGmailMessageId(11, "msg-refund-1"))
                 .thenReturn(Optional.empty());
-        when(orderRepository.findByUserIdAndMerchantKeyAndOrderNo(7, "amazon.in", "407-3385584-8184336"))
+        when(orderRepository.findByUserIdAndCompanyBrandNameAndOrderNo(7, "Amazon", "407-3385584-8184336"))
                 .thenReturn(Optional.of(existing));
         when(orderRepository.save(existing)).thenReturn(existing);
 
@@ -508,10 +580,12 @@ class GmailOrderImportServiceTest {
     private Order existingOrder(Instant placedAt) {
         Order order = new Order();
         order.setUser(account.getUser());
-        order.setMerchantKey("amazon.in");
         order.setOrderNo("ORDER-123");
         order.setStatus(OrderStatus.CONFIRMED);
         order.setPlacedAt(placedAt);
+        Company company = new Company();
+        company.setBrandName("Amazon");
+        order.setCompany(company);
         return order;
     }
 

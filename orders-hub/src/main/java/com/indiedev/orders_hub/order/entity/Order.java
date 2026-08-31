@@ -18,8 +18,8 @@ import java.util.List;
 @Table(
         name = "orders",
         uniqueConstraints = @UniqueConstraint(
-                name = "uk_order_user_merchant_number",
-                columnNames = {"user_id", "merchant_key", "order_no"}
+                name = "uk_order_user_company_number",
+                columnNames = {"user_id", "company_id", "order_no"}
         )
 )
 public class Order extends BaseEntity {
@@ -27,12 +27,6 @@ public class Order extends BaseEntity {
     @Id
     @GeneratedValue(strategy = jakarta.persistence.GenerationType.IDENTITY)
     private long id;
-
-    @Column(nullable = true, length = 255)
-    private String brandName;
-
-    @Column(name = "merchant_key", length = 255)
-    private String merchantKey;
 
     @Column(name = "order_no", nullable = false, length = 255)
     private String orderNo;
@@ -59,15 +53,24 @@ public class Order extends BaseEntity {
     @Column(name = "refund_amount", nullable = true)
     private BigDecimal refundAmount;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "user_id", nullable = false, foreignKey = @ForeignKey(name = "fk_connected_order"))
     private User user;
 
     @OneToMany(
             mappedBy = "order",
             cascade = CascadeType.ALL,
-            orphanRemoval = true
+            orphanRemoval = true,
+            fetch = FetchType.EAGER
     )
     @BatchSize(size = 50)
     private List<OrderItem> orderItems = new ArrayList<>();
+
+    @ManyToOne(fetch = FetchType.LAZY, cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    @JoinColumn(
+            name = "company_id",
+            nullable = true,
+            foreignKey = @ForeignKey(name = "fk_orders_company")
+    )
+    private Company company;
 }
