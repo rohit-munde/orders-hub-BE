@@ -34,6 +34,7 @@ class GmailOrderImportServiceTest {
     private OrderEmailSourceRepository sourceRepository;
     private UserRepository userRepository;
     private ApplicationEventPublisher eventPublisher;
+    private CompanyMasterService companyMasterService;
     private GmailOrderImportService service;
     private ConnectedAccount account;
 
@@ -43,12 +44,25 @@ class GmailOrderImportServiceTest {
         sourceRepository = mock(OrderEmailSourceRepository.class);
         userRepository = mock(UserRepository.class);
         eventPublisher = mock(ApplicationEventPublisher.class);
+        companyMasterService = mock(CompanyMasterService.class);
 
         User user = new User();
         user.setId(7);
         user.setEmail("shopper@example.com");
         when(userRepository.findByIdForUpdate(7)).thenReturn(Optional.of(user));
-        service = new GmailOrderImportService(orderRepository, sourceRepository, userRepository, eventPublisher);
+        when(companyMasterService.findOrCreateByBrandName(nullable(String.class)))
+                .thenAnswer(invocation -> {
+                    Company company = new Company();
+                    company.setBrandName(invocation.getArgument(0));
+                    return new CompanyMasterService.FindOrCreateCompanyResult(company, true);
+                });
+        service = new GmailOrderImportService(
+                orderRepository,
+                sourceRepository,
+                userRepository,
+                eventPublisher,
+                companyMasterService
+        );
         account = new ConnectedAccount();
         account.setId(11);
         account.setUser(user);

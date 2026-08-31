@@ -18,7 +18,7 @@ public class Company extends BaseEntity {
     @GeneratedValue(strategy = jakarta.persistence.GenerationType.IDENTITY)
     private long id;
 
-    @Column
+    @Column(name = "brand_name", length = 255)
     private String brandName;
 
     @Column(name = "logo_url", length = 2048)

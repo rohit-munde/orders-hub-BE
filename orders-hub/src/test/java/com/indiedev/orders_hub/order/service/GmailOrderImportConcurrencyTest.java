@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 @DataJpaTest
-@Import(GmailOrderImportService.class)
+@Import({GmailOrderImportService.class, CompanyMasterService.class})
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class GmailOrderImportConcurrencyTest {
 

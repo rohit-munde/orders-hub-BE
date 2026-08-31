@@ -35,6 +35,7 @@ public class GmailOrderImportService {
     private final OrderEmailSourceRepository sourceRepository;
     private final UserRepository userRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final CompanyMasterService companyMasterService;
 
     @Transactional(readOnly = true)
     public boolean shouldProcess(long accountId, String gmailMessageId, int parserVersion) {
@@ -100,7 +101,7 @@ public class GmailOrderImportService {
                         )))
                 .orElseGet(() -> {
                     createdNewCompany.set(true);
-                    return newOrder(account, brandName, orderNo);
+                    return newOrder(account, brandName, orderNo, createdNewCompany);
                 });
         merge(order, candidate);
         order = orderRepository.save(order);
@@ -206,14 +207,20 @@ public class GmailOrderImportService {
         return first != null && second != null && first.getId() != 0 && first.getId() == second.getId();
     }
 
-    private Order newOrder(ConnectedAccount account, String brandName, String orderNo) {
+    private Order newOrder(
+            ConnectedAccount account,
+            String brandName,
+            String orderNo,
+            AtomicBoolean createdNewCompany
+    ) {
         Order order = new Order();
         order.setUser(account.getUser());
         order.setOrderNo(orderNo);
         order.setStatus(OrderStatus.UNKNOWN);
-        Company company = new Company();
-        company.setBrandName(brandName);
-        order.setCompany(company);
+        CompanyMasterService.FindOrCreateCompanyResult companyResult =
+                companyMasterService.findOrCreateByBrandName(brandName);
+        createdNewCompany.set(companyResult.created());
+        order.setCompany(companyResult.company());
         return order;
     }
 
