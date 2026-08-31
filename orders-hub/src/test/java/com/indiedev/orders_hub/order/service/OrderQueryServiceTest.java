@@ -102,6 +102,24 @@ class OrderQueryServiceTest {
     }
 
     @Test
+    void mapsOrderWithoutCompanyWithNullBrandAndLogo() {
+        Order order = order(Instant.parse("2026-08-03T10:00:00Z"));
+        order.setCompany(null);
+        when(orderRepository.findPageForUser(eq(7L), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(order), PageRequest.of(0, 20), 1));
+        when(accountRepository.findFirstByUserIdAndProviderOrderByIdDesc(
+                7, ConnectedAccountProvider.GOOGLE
+        )).thenReturn(Optional.empty());
+
+        OrderListResponse response = service.getOrders(7, PageRequest.of(0, 20));
+
+        OrderListResponse.OrderResponse mapped = response.orders().content().getFirst();
+        assertNull(mapped.brandName());
+        assertNull(mapped.logoUrl());
+        assertEquals("ORDER-123", mapped.orderNo());
+    }
+
+    @Test
     void publicOrderDtosContainNoEmailOrCredentialFields() {
         Set<String> forbidden = Set.of(
                 "otp", "gmailMessageId", "body", "accessToken", "refreshToken"

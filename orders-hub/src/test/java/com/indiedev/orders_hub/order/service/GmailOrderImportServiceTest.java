@@ -269,6 +269,28 @@ class GmailOrderImportServiceTest {
     }
 
     @Test
+    void importsOrderWithoutBrandWithoutCreatingEmptyCompany() {
+        GmailOrderPreview candidate = candidate(
+                "message-no-brand", "   ", "ORDER-123",
+                null, null, null, null, OrderStatus.CONFIRMED
+        );
+        when(companyMasterService.findOrCreateByBrandName(nullable(String.class)))
+                .thenReturn(new CompanyMasterService.FindOrCreateCompanyResult(null, false));
+        when(sourceRepository.findByConnectedAccountIdAndGmailMessageId(11, "message-no-brand"))
+                .thenReturn(Optional.empty());
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        GmailOrderImportService.ImportResult result = service.importOrder(account, "message-no-brand", candidate, 1);
+
+        assertEquals(SAVED, result.outcome());
+        assertNull(result.order().getCompany());
+        ArgumentCaptor<OrderEmailSource> source = ArgumentCaptor.forClass(OrderEmailSource.class);
+        verify(sourceRepository).save(source.capture());
+        assertSame(result.order(), source.getValue().getOrder());
+        verify(eventPublisher, never()).publishEvent(any(CompanyCreatedEvent.class));
+    }
+
+    @Test
     void removesStaleImportedOrderWhenReparseNoLongerFindsAnOrderIdentity() {
         Order staleOrder = new Order();
         staleOrder.setId(21);

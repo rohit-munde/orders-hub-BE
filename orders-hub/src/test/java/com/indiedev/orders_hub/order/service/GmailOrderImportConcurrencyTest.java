@@ -118,6 +118,7 @@ class GmailOrderImportConcurrencyTest {
     }
 
     @Test
+    @Transactional
     void doesNotGuessMerchantForALegacyOrderFromOrderNumberAlone() {
         User user = new User();
         user.setEmail("legacy@example.com");

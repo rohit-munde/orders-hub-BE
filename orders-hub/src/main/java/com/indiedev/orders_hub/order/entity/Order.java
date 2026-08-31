@@ -66,7 +66,7 @@ public class Order extends BaseEntity {
     @BatchSize(size = 50)
     private List<OrderItem> orderItems = new ArrayList<>();
 
-    @ManyToOne(fetch = FetchType.EAGER, cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    @ManyToOne(fetch = FetchType.LAZY, cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     @JoinColumn(
             name = "company_id",
             nullable = true,

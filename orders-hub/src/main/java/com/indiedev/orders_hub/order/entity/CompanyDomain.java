@@ -21,7 +21,7 @@ public class CompanyDomain extends BaseEntity {
     @GeneratedValue(strategy = jakarta.persistence.GenerationType.IDENTITY)
     private long id;
 
-    @Column(name = "domain_name",nullable = false, length = 1024)
+    @Column(name = "domain_name", nullable = false, length = 255)
     private String domainName;
 
     @Column(name = "is_primary", nullable = false)

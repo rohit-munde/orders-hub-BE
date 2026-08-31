@@ -12,7 +12,13 @@ import java.util.Set;
 @Getter
 @Setter
 @Entity
-@Table(name = "company")
+@Table(
+        name = "company",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_company_brand_name",
+                columnNames = "brand_name"
+        )
+)
 public class Company extends BaseEntity {
     @Id
     @GeneratedValue(strategy = jakarta.persistence.GenerationType.IDENTITY)

@@ -3,6 +3,7 @@ package com.indiedev.orders_hub.order.service;
 import com.indiedev.orders_hub.order.entity.Company;
 import com.indiedev.orders_hub.order.repository.CompanyMasterRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -16,8 +17,7 @@ public class CompanyMasterService {
     @Transactional
     public FindOrCreateCompanyResult findOrCreateByBrandName(String brandName) {
         if (!StringUtils.hasText(brandName)) {
-            Company company = new Company();
-            return new FindOrCreateCompanyResult(company, true);
+            return new FindOrCreateCompanyResult(null, false);
         }
 
         String normalizedBrandName = brandName.strip();
@@ -29,7 +29,13 @@ public class CompanyMasterService {
     private FindOrCreateCompanyResult createCompany(String brandName) {
         Company company = new Company();
         company.setBrandName(brandName);
-        return new FindOrCreateCompanyResult(companyMasterRepository.save(company), true);
+        try {
+            return new FindOrCreateCompanyResult(companyMasterRepository.saveAndFlush(company), true);
+        } catch (DataIntegrityViolationException ex) {
+            return companyMasterRepository.findByBrandNameIgnoreCase(brandName)
+                    .map(existing -> new FindOrCreateCompanyResult(existing, false))
+                    .orElseThrow(() -> ex);
+        }
     }
 
     public record FindOrCreateCompanyResult(Company company, boolean created) {

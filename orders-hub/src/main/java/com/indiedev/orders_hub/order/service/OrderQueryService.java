@@ -4,7 +4,6 @@ import com.indiedev.orders_hub.connectedaccount.entity.ConnectedAccountProvider;
 import com.indiedev.orders_hub.connectedaccount.repository.ConnectedAccountRepository;
 import com.indiedev.orders_hub.order.entity.Order;
 import com.indiedev.orders_hub.order.entity.OrderItem;
-import com.indiedev.orders_hub.order.repository.CompanyMasterRepository;
 import com.indiedev.orders_hub.order.repository.OrderRepository;
 import com.indiedev.orders_hub.order.response.OrderListResponse;
 import com.indiedev.orders_hub.common.response.PageResponse;
@@ -22,7 +21,6 @@ public class OrderQueryService {
 
     private final OrderRepository orderRepository;
     private final ConnectedAccountRepository accountRepository;
-//    private final CompanyMasterRepository companyMasterRepository;
 
     @Transactional(readOnly = true)
     public OrderListResponse getOrders(long userId, Pageable pageable) {
@@ -44,7 +42,7 @@ public class OrderQueryService {
                 order.getId(),
                 order.getCompany() != null ? order.getCompany().getBrandName() : null,
                 order.getOrderNo(),
-                order.getCompany().getLogoUrl(),
+                order.getCompany() != null ? order.getCompany().getLogoUrl() : null,
                 order.getBillAmount(),
                 order.getRefundAmount(),
                 order.getCurrency(),

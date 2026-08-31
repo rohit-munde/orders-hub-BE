@@ -1,7 +1,8 @@
 insert into company (
     brand_name,
-    domain_name,
+    primary_domain_name,
     logo_url,
+    enrichment_status,
     is_active,
     created_at,
     updated_at
@@ -10,6 +11,7 @@ select distinct
     trim(o.brand_name),
     null,
     null,
+    'PENDING',
     true,
     now(),
     now()

@@ -40,13 +40,25 @@ class CompanyMasterServiceTest {
     void createsCompanyOnceWhenBrandNameDoesNotExist() {
         when(companyMasterRepository.findByBrandNameIgnoreCase("Amazon.in"))
                 .thenReturn(Optional.empty());
-        when(companyMasterRepository.save(any(Company.class)))
+        when(companyMasterRepository.saveAndFlush(any(Company.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         CompanyMasterService.FindOrCreateCompanyResult result = service.findOrCreateByBrandName(" Amazon.in ");
 
         assertTrue(result.created());
         assertEquals("Amazon.in", result.company().getBrandName());
-        verify(companyMasterRepository).save(result.company());
+        verify(companyMasterRepository).saveAndFlush(result.company());
+    }
+
+    @Test
+    void returnsNoCompanyWhenBrandNameIsMissing() {
+        CompanyMasterService.FindOrCreateCompanyResult nullResult = service.findOrCreateByBrandName(null);
+        CompanyMasterService.FindOrCreateCompanyResult blankResult = service.findOrCreateByBrandName("   ");
+
+        assertNull(nullResult.company());
+        assertFalse(nullResult.created());
+        assertNull(blankResult.company());
+        assertFalse(blankResult.created());
+        verifyNoInteractions(companyMasterRepository);
     }
 }

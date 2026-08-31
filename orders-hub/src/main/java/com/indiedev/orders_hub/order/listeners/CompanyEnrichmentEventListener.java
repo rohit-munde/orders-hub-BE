@@ -1,4 +1,4 @@
-package com.indiedev.orders_hub.order.listners;
+package com.indiedev.orders_hub.order.listeners;
 
 import com.indiedev.orders_hub.order.event.CompanyCreatedEvent;
 import com.indiedev.orders_hub.order.service.CompanyEnrichmentService;

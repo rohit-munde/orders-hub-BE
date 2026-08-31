@@ -225,10 +225,12 @@ public class GmailOrderImportService {
     }
 
     private void merge(Order order, GmailOrderPreview candidate) {
-        if (order.getCompany() == null) {
+        if (order.getCompany() == null && StringUtils.hasText(candidate.brandName())) {
             order.setCompany(new Company());
         }
-        if (!StringUtils.hasText(order.getCompany().getBrandName()) && StringUtils.hasText(candidate.brandName())) {
+        if (order.getCompany() != null
+                && !StringUtils.hasText(order.getCompany().getBrandName())
+                && StringUtils.hasText(candidate.brandName())) {
             order.getCompany().setBrandName(candidate.brandName().strip());
         }
         if (candidate.status() == OrderStatus.REFUNDED) {
