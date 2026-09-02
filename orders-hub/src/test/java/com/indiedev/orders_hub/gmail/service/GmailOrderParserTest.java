@@ -44,7 +44,7 @@ class GmailOrderParserTest {
         assertEquals(OrderStatus.SHIPPED, preview.status());
         assertEquals(receivedAt, preview.placedAt());
         assertEquals(List.of(), preview.orderItems());
-        assertEquals(9, parser.version());
+        assertEquals(10, parser.version());
     }
 
     @Test

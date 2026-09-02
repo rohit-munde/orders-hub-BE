@@ -39,7 +39,7 @@ public class GmailOrderParser {
     private static final Pattern DELIVERED = Pattern.compile(
             "(?i)\\b(?:has\\s+been|was|is|package\\s+)?delivered\\b(?!\\s+by)"
     );
-    private static final int PARSER_VERSION = 9;
+    private static final int PARSER_VERSION = 10;
 
     public GmailOrderPreview parse(GmailMessageContent message) {
         return parseAll(message).getFirst();

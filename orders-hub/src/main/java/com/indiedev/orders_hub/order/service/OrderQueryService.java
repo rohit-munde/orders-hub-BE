@@ -43,7 +43,7 @@ public class OrderQueryService {
                 order.getCompany() != null ? order.getCompany().getBrandName() : null,
                 order.getOrderNo(),
                 order.getCompany() != null ? order.getCompany().getLogoUrl() : null,
-                order.getBillAmount(),
+                order.getBillAmount() != null ? order.getBillAmount() : order.getRefundAmount(),
                 order.getRefundAmount(),
                 order.getCurrency(),
                 order.getPaid(),

@@ -166,7 +166,8 @@ public class GmailOrderImportService {
 
     private boolean isRetryable(OrderEmailSource source, int parserVersion) {
         return source.getProcessingStatus() == OrderEmailProcessingStatus.FAILED
-                || source.getParserVersion() < parserVersion;
+                || source.getParserVersion() < parserVersion
+                || (source.getOrder() != null && source.getOrder().getBillAmount() == null);
     }
 
     private boolean hasIdentity(GmailOrderPreview candidate) {
@@ -236,6 +237,9 @@ public class GmailOrderImportService {
         if (candidate.status() == OrderStatus.REFUNDED) {
             if (candidate.billAmount() != null) {
                 order.setRefundAmount(candidate.billAmount());
+                if (order.getBillAmount() == null) {
+                    order.setBillAmount(candidate.billAmount());
+                }
             }
         } else {
             if (order.getBillAmount() == null && candidate.billAmount() != null) {
