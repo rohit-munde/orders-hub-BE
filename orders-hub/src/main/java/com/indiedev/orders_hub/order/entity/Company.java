@@ -36,6 +36,9 @@ public class Company extends BaseEntity {
     @OneToMany(mappedBy = "company", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<CompanyDomain> companyDomains = new HashSet<>();
 
+    @OneToMany(mappedBy = "company", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Set<CompanyAlias> companyAliases = new HashSet<>();
+
     @Enumerated(EnumType.STRING)
     @Column(name = "enrichment_status", nullable = false, length = 32)
     private EnrichmentStatusEnum enrichmentStatus = EnrichmentStatusEnum.PENDING;

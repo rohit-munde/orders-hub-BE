@@ -15,10 +15,10 @@ import static org.springframework.transaction.event.TransactionPhase.AFTER_COMMI
 public class CompanyEnrichmentEventListener {
     private final CompanyEnrichmentService companyEnrichmentService;
 
-    @Async
+    @Async("companyEnrichmentTaskExecutor")
     @TransactionalEventListener(phase = AFTER_COMMIT)
     public void onCompanyCreated(CompanyCreatedEvent event) {
-        try{
+        try {
             companyEnrichmentService.enrich(event.companyId());
         } catch (Exception e) {
             log.warn("Error enriching company with ID {}", event.companyId(), e);
