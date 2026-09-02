@@ -21,8 +21,11 @@ public class GmailOrderParser {
             "(?i)\\border\\s*(?:(?:number|no\\.?|id)\\s*[:#-]?\\s*|[#:]\\s*)([a-z0-9][a-z0-9-]{2,})\\b"
     );
     private static final Pattern BILL_AMOUNT = Pattern.compile(
-            "(?i)\\b(?:grand\\s+total|order\\s+total|total\\s+amount|amount\\s+paid|bill\\s+amount|total\\s+refund|refund\\s+total|refund\\s+subtotal|subtotal|total)"
-                    + "\\s*:?\\s*(?:(INR|USD|Rs\\.?|₹|\\$)\\s*)?([0-9][0-9,]*(?:\\.[0-9]{1,2})?)"
+            "(?i)\\b(?:grand\\s+total|order\\s+total|total\\s+amount|amount\\s+paid|bill\\s+amount|total\\s+for\\s+this\\s+shipment|total\\s+refund|refund\\s+total|refund\\s+amount|refund\\s+subtotal|subtotal|total|paid|price|amount|paid\\s+amount)"
+                    + "\\s*[:=]?\\s*(?:(INR|USD|EUR|GBP|Rs\\.?|₹|\\$|€|£)\\s*)?([0-9][0-9,]*(?:\\.[0-9]{1,2})?)"
+    );
+    private static final Pattern EXPLICIT_CURRENCY_AMOUNT = Pattern.compile(
+            "(?i)(?:(INR|USD|EUR|GBP|Rs\\.?|₹|\\$|€|£)\\s*)([0-9][0-9,]*(?:\\.[0-9]{1,2})?)"
     );
     private static final Pattern OTP = Pattern.compile(
             "(?i)\\b(?:delivery\\s+)?otp\\s*(?:is|:|-)?\\s*(\\d{4,8})\\b"
@@ -36,7 +39,7 @@ public class GmailOrderParser {
     private static final Pattern DELIVERED = Pattern.compile(
             "(?i)\\b(?:has\\s+been|was|is|package\\s+)?delivered\\b(?!\\s+by)"
     );
-    private static final int PARSER_VERSION = 8;
+    private static final int PARSER_VERSION = 9;
 
     public GmailOrderPreview parse(GmailMessageContent message) {
         return parseAll(message).getFirst();
@@ -68,6 +71,9 @@ public class GmailOrderParser {
             String searchableText
     ) {
         Amount amount = amount(amountText, senderDomain(message.from()));
+        if (amount.value() == null && org.springframework.util.StringUtils.hasText(searchableText)) {
+            amount = amount(searchableText, senderDomain(message.from()));
+        }
 
         return new GmailOrderPreview(
                 message.gmailMessageId(),
@@ -110,13 +116,26 @@ public class GmailOrderParser {
     }
 
     private Amount amount(String body, String senderDomain) {
-        Matcher matcher = BILL_AMOUNT.matcher(body);
-        if (!matcher.find()) {
+        if (!org.springframework.util.StringUtils.hasText(body)) {
             return new Amount(null, null);
         }
+        Matcher matcher = BILL_AMOUNT.matcher(body);
+        if (matcher.find()) {
+            return extractAmountFromMatcher(matcher, senderDomain);
+        }
+        Matcher explicitMatcher = EXPLICIT_CURRENCY_AMOUNT.matcher(body);
+        if (explicitMatcher.find()) {
+            return extractAmountFromMatcher(explicitMatcher, senderDomain);
+        }
+        return new Amount(null, null);
+    }
+
+    private Amount extractAmountFromMatcher(Matcher matcher, String senderDomain) {
         String marker = matcher.group(1);
         String currency = marker == null ? inferredCurrency(senderDomain) : switch (marker.toUpperCase(Locale.ROOT)) {
             case "USD", "$" -> "USD";
+            case "EUR", "€" -> "EUR";
+            case "GBP", "£" -> "GBP";
             default -> "INR";
         };
         return new Amount(

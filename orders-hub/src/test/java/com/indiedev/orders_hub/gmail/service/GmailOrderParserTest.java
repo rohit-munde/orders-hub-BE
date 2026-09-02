@@ -44,7 +44,28 @@ class GmailOrderParserTest {
         assertEquals(OrderStatus.SHIPPED, preview.status());
         assertEquals(receivedAt, preview.placedAt());
         assertEquals(List.of(), preview.orderItems());
-        assertEquals(8, parser.version());
+        assertEquals(9, parser.version());
+    }
+
+    @Test
+    void parsesBillAmountPositionedAboveOrderNumber() {
+        GmailMessageContent message = new GmailMessageContent(
+                "message-amazon-above",
+                "Your Amazon.in order",
+                "Amazon.in <shipment-tracking@amazon.in>",
+                """
+                        Order Total: ₹679.00
+                        Your package has been delivered.
+                        Order #407-5165755-2113155
+                        """,
+                Instant.parse("2026-09-01T17:06:00Z")
+        );
+
+        GmailOrderPreview preview = parser.parse(message);
+
+        assertEquals("407-5165755-2113155", preview.orderNo());
+        assertEquals(new BigDecimal("679.00"), preview.billAmount());
+        assertEquals("INR", preview.currency());
     }
 
     @Test
