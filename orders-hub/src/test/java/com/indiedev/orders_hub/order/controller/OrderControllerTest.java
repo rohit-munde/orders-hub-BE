@@ -74,6 +74,7 @@ class OrderControllerTest {
                                 true,
                                 OrderStatus.SHIPPED,
                                 placedAt,
+                                "482913",
                                 List.of()
                         )),
                         new PageMetadata(0, 20, 1, 1, false, false)
@@ -88,6 +89,7 @@ class OrderControllerTest {
                 .andExpect(jsonPath("$.payload.orders.content[0].id").value(21))
                 .andExpect(jsonPath("$.payload.orders.content[0].orderNo").value("ORDER-123"))
                 .andExpect(jsonPath("$.payload.orders.content[0].placedAt").value("2026-08-03T10:00:00Z"))
+                .andExpect(jsonPath("$.payload.orders.content[0].deliveryOtp").value("482913"))
                 .andExpect(jsonPath("$.payload.orders.content[0].otp").doesNotExist())
                 .andExpect(jsonPath("$.payload.orders.content[0].gmailMessageId").doesNotExist())
                 .andExpect(jsonPath("$.payload.orders.pagination.page").value(0))

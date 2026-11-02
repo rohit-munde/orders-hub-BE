@@ -17,6 +17,7 @@ import org.springframework.web.client.RestClientException;
 public class GoogleOAuthService {
 
     static final String TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
+    static final String REVOKE_ENDPOINT = "https://oauth2.googleapis.com/revoke";
     private static final Logger LOGGER = LoggerFactory.getLogger(GoogleOAuthService.class);
 
     private final RestClient restClient;
@@ -104,6 +105,33 @@ public class GoogleOAuthService {
             throw exception;
         } catch (RestClientException exception) {
             throw new GoogleApiException("Google access token refresh failed", exception);
+        }
+    }
+
+    /**
+     * Revokes a Google OAuth grant. Revoking a refresh token removes OrdersHub's access to the
+     * user's Gmail entirely. Failures are logged and reported as {@code false} so that account
+     * cleanup never fails because Google is unreachable.
+     */
+    public boolean revokeToken(String token) {
+        if (!StringUtils.hasText(token)) {
+            return false;
+        }
+
+        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+        form.add("token", token);
+
+        try {
+            restClient.post()
+                    .uri(REVOKE_ENDPOINT)
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(form)
+                    .retrieve()
+                    .toBodilessEntity();
+            return true;
+        } catch (RestClientException exception) {
+            LOGGER.warn("Google token revocation failed: {}", exception.getClass().getSimpleName());
+            return false;
         }
     }
 

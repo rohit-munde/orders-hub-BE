@@ -7,11 +7,13 @@ import com.indiedev.orders_hub.order.entity.OrderItem;
 import com.indiedev.orders_hub.order.repository.OrderRepository;
 import com.indiedev.orders_hub.order.response.OrderListResponse;
 import com.indiedev.orders_hub.common.response.PageResponse;
+import com.indiedev.orders_hub.security.token.TokenEncryptionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.Instant;
 
@@ -21,6 +23,7 @@ public class OrderQueryService {
 
     private final OrderRepository orderRepository;
     private final ConnectedAccountRepository accountRepository;
+    private final TokenEncryptionService encryptionService;
 
     @Transactional(readOnly = true)
     public OrderListResponse getOrders(long userId, Pageable pageable) {
@@ -43,14 +46,27 @@ public class OrderQueryService {
                 order.getCompany() != null ? order.getCompany().getBrandName() : null,
                 order.getOrderNo(),
                 order.getCompany() != null ? order.getCompany().getLogoUrl() : null,
-                order.getBillAmount(),
+                order.getBillAmount() != null ? order.getBillAmount() : order.getRefundAmount(),
                 order.getRefundAmount(),
                 order.getCurrency(),
                 order.getPaid(),
                 order.getStatus(),
                 order.getPlacedAt(),
+                deliveryOtp(order),
                 order.getOrderItems().stream().map(this::toResponse).toList()
         );
+    }
+
+    /** Only orders that are still on their way expose their OTP. */
+    private String deliveryOtp(Order order) {
+        if (!StringUtils.hasText(order.getOtp()) || order.getStatus() == null || order.getStatus().isFinal()) {
+            return null;
+        }
+        try {
+            return encryptionService.decrypt(order.getOtp());
+        } catch (RuntimeException exception) {
+            return null;
+        }
     }
 
     private OrderListResponse.OrderItemResponse toResponse(OrderItem item) {
