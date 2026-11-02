@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -39,8 +40,8 @@ public class GmailOrderParser {
     private static final Pattern DELIVERED = Pattern.compile(
             "(?i)\\b(?:has\\s+been|was|is|package\\s+)?delivered\\b(?!\\s+by)"
     );
-    // 11: delivery OTPs are now saved, so emails imported by earlier versions are re-read once.
-    private static final int PARSER_VERSION = 11;
+    // 12: delivery OTPs are no longer stored; re-reading emails clears any saved by version 11.
+    private static final int PARSER_VERSION = 12;
 
     public GmailOrderPreview parse(GmailMessageContent message) {
         return parseAll(message).getFirst();
@@ -88,6 +89,12 @@ public class GmailOrderParser {
                 message.receivedAt(),
                 List.of()
         );
+    }
+
+    /** Finds a delivery OTP in an email's subject or text, if it has one. */
+    public Optional<String> deliveryOtp(GmailMessageContent message) {
+        String searchableText = valueOrEmpty(message.subject()) + "\n" + valueOrEmpty(message.body());
+        return Optional.ofNullable(extract(OTP, searchableText));
     }
 
     public int version() {

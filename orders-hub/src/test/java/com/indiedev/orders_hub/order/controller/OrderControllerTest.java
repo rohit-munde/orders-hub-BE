@@ -3,8 +3,11 @@ package com.indiedev.orders_hub.order.controller;
 import com.indiedev.orders_hub.GlobalExceptionHandling;
 import com.indiedev.orders_hub.config.SecurityConfig;
 import com.indiedev.orders_hub.order.entity.OrderStatus;
+import com.indiedev.orders_hub.exception.DeliveryOtpNotFoundException;
+import com.indiedev.orders_hub.order.response.DeliveryOtpResponse;
 import com.indiedev.orders_hub.order.response.OrderListResponse;
 import com.indiedev.orders_hub.order.response.OrderSyncResponse;
+import com.indiedev.orders_hub.order.service.DeliveryOtpService;
 import com.indiedev.orders_hub.order.service.OrderQueryService;
 import com.indiedev.orders_hub.order.service.OrderSyncService;
 import com.indiedev.orders_hub.common.response.PageMetadata;
@@ -29,6 +32,7 @@ import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -41,6 +45,9 @@ class OrderControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @MockitoBean
+    private DeliveryOtpService deliveryOtpService;
 
     @MockitoBean
     private OrderQueryService queryService;
@@ -74,7 +81,6 @@ class OrderControllerTest {
                                 true,
                                 OrderStatus.SHIPPED,
                                 placedAt,
-                                "482913",
                                 List.of()
                         )),
                         new PageMetadata(0, 20, 1, 1, false, false)
@@ -89,7 +95,6 @@ class OrderControllerTest {
                 .andExpect(jsonPath("$.payload.orders.content[0].id").value(21))
                 .andExpect(jsonPath("$.payload.orders.content[0].orderNo").value("ORDER-123"))
                 .andExpect(jsonPath("$.payload.orders.content[0].placedAt").value("2026-08-03T10:00:00Z"))
-                .andExpect(jsonPath("$.payload.orders.content[0].deliveryOtp").value("482913"))
                 .andExpect(jsonPath("$.payload.orders.content[0].otp").doesNotExist())
                 .andExpect(jsonPath("$.payload.orders.content[0].gmailMessageId").doesNotExist())
                 .andExpect(jsonPath("$.payload.orders.pagination.page").value(0))
@@ -161,5 +166,35 @@ class OrderControllerTest {
         mockMvc.perform(get("/api/v1/orders").with(jwt()))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Authenticated user ID is missing"));
+    }
+
+    @Test
+    void returnsTheDeliveryOtpAndForbidsCaching() throws Exception {
+        when(deliveryOtpService.findDeliveryOtp(7, 21))
+                .thenReturn(new DeliveryOtpResponse("482913", Instant.parse("2026-08-03T08:15:00Z")));
+
+        mockMvc.perform(get("/api/v1/orders/21/delivery-otp").with(jwt().jwt(token -> token.claim("userId", 7L))))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", org.hamcrest.Matchers.containsString("no-store")))
+                .andExpect(jsonPath("$.payload.otp").value("482913"))
+                .andExpect(jsonPath("$.payload.receivedAt").value("2026-08-03T08:15:00Z"));
+    }
+
+    @Test
+    void reportsWhenNoDeliveryOtpIsFound() throws Exception {
+        when(deliveryOtpService.findDeliveryOtp(7, 21))
+                .thenThrow(new DeliveryOtpNotFoundException("No delivery OTP found in your email yet"));
+
+        mockMvc.perform(get("/api/v1/orders/21/delivery-otp").with(jwt().jwt(token -> token.claim("userId", 7L))))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("No delivery OTP found in your email yet"));
+    }
+
+    @Test
+    void deliveryOtpRequiresAuthentication() throws Exception {
+        mockMvc.perform(get("/api/v1/orders/21/delivery-otp"))
+                .andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(deliveryOtpService);
     }
 }

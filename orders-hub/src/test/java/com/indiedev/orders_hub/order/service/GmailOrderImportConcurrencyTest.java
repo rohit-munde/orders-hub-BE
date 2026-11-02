@@ -13,9 +13,7 @@ import com.indiedev.orders_hub.order.source.OrderEmailProcessingStatus;
 import com.indiedev.orders_hub.order.source.OrderEmailSourceRepository;
 import com.indiedev.orders_hub.user.entity.User;
 import com.indiedev.orders_hub.user.repository.UserRepository;
-import com.indiedev.orders_hub.security.token.TokenEncryptionService;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
@@ -32,8 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 @DataJpaTest
-@Import({GmailOrderImportService.class, CompanyMasterService.class, TokenEncryptionService.class})
-@TestPropertySource(properties = "security.token-encryption-key=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=")
+@Import({GmailOrderImportService.class, CompanyMasterService.class})
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class GmailOrderImportConcurrencyTest {
 

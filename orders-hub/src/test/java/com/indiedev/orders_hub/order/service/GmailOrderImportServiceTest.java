@@ -13,7 +13,6 @@ import com.indiedev.orders_hub.order.source.OrderEmailSourceRepository;
 import com.indiedev.orders_hub.user.entity.User;
 import com.indiedev.orders_hub.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
-import com.indiedev.orders_hub.security.token.TokenEncryptionService;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
 import org.mockito.ArgumentCaptor;
@@ -37,8 +36,6 @@ class GmailOrderImportServiceTest {
     private ApplicationEventPublisher eventPublisher;
     private CompanyMasterService companyMasterService;
     private GmailOrderImportService service;
-    private final TokenEncryptionService encryptionService =
-            new TokenEncryptionService("MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=");
     private ConnectedAccount account;
 
     @BeforeEach
@@ -64,8 +61,7 @@ class GmailOrderImportServiceTest {
                 sourceRepository,
                 userRepository,
                 eventPublisher,
-                companyMasterService,
-                encryptionService
+                companyMasterService
         );
         account = new ConnectedAccount();
         account.setId(11);
@@ -73,12 +69,12 @@ class GmailOrderImportServiceTest {
     }
 
     @Test
-    void removesTheDeliveryOtpOnceTheOrderIsDelivered() {
+    void clearsAnOtpSavedByAnEarlierParserVersion() {
         Order existing = new Order();
         existing.setUser(account.getUser());
         existing.setOrderNo("ORDER-555");
         existing.setStatus(OrderStatus.OUT_FOR_DELIVERY);
-        existing.setOtp(encryptionService.encrypt("4821"));
+        existing.setOtp("saved-by-parser-version-11");
         existing.setPlacedAt(Instant.parse("2026-08-01T10:00:00Z"));
         OrderEmailSource existingSource = source(OrderEmailProcessingStatus.IMPORTED, 1);
         existingSource.setOrder(existing);
@@ -97,7 +93,7 @@ class GmailOrderImportServiceTest {
     }
 
     @Test
-    void createsOrderAndLinksImportedSourceWithAnEncryptedDeliveryOtp() {
+    void createsOrderAndLinksImportedSourceWithoutPersistingOtp() {
         Instant placedAt = Instant.parse("2026-08-02T12:30:00Z");
         GmailOrderPreview candidate = candidate(
                 "message-1", "Amazon", " order-123 ",
@@ -119,8 +115,7 @@ class GmailOrderImportServiceTest {
         assertEquals(Boolean.TRUE, result.order().getPaid());
         assertEquals(OrderStatus.SHIPPED, result.order().getStatus());
         assertEquals(placedAt, result.order().getPlacedAt());
-        assertNotEquals("482731", result.order().getOtp());
-        assertEquals("482731", encryptionService.decrypt(result.order().getOtp()));
+        assertNull(result.order().getOtp());
 
         ArgumentCaptor<OrderEmailSource> source = ArgumentCaptor.forClass(OrderEmailSource.class);
         verify(sourceRepository).save(source.capture());
