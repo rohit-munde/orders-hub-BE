@@ -44,7 +44,22 @@ class GmailOrderParserTest {
         assertEquals(OrderStatus.SHIPPED, preview.status());
         assertEquals(receivedAt, preview.placedAt());
         assertEquals(List.of(), preview.orderItems());
-        assertEquals(11, parser.version());
+        assertEquals(12, parser.version());
+    }
+
+    @Test
+    void findsTheDeliveryOtpInAnEmail() {
+        GmailMessageContent withOtp = new GmailMessageContent(
+                "otp-message", "Your package is out for delivery", "Amazon <shipment-tracking@amazon.in>",
+                "Share the delivery OTP 482913 with the delivery agent.", Instant.parse("2026-08-03T08:15:00Z")
+        );
+        GmailMessageContent withoutOtp = new GmailMessageContent(
+                "plain-message", "Your order has shipped", "Amazon <shipment-tracking@amazon.in>",
+                "Your order is on its way.", Instant.parse("2026-08-02T08:15:00Z")
+        );
+
+        assertEquals(java.util.Optional.of("482913"), parser.deliveryOtp(withOtp));
+        assertEquals(java.util.Optional.empty(), parser.deliveryOtp(withoutOtp));
     }
 
     @Test

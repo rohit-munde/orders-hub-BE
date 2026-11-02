@@ -9,7 +9,6 @@ import com.indiedev.orders_hub.order.entity.OrderItem;
 import com.indiedev.orders_hub.order.repository.OrderRepository;
 import com.indiedev.orders_hub.order.entity.OrderStatus;
 import com.indiedev.orders_hub.order.response.OrderListResponse;
-import com.indiedev.orders_hub.security.token.TokenEncryptionService;
 import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,14 +34,12 @@ class OrderQueryServiceTest {
     private OrderRepository orderRepository;
     private ConnectedAccountRepository accountRepository;
     private OrderQueryService service;
-    private final TokenEncryptionService encryptionService =
-            new TokenEncryptionService("MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=");
 
     @BeforeEach
     void setUp() {
         orderRepository = mock(OrderRepository.class);
         accountRepository = mock(ConnectedAccountRepository.class);
-        service = new OrderQueryService(orderRepository, accountRepository, encryptionService);
+        service = new OrderQueryService(orderRepository, accountRepository);
     }
 
     @Test
@@ -125,9 +122,8 @@ class OrderQueryServiceTest {
     @Test
     void publicOrderDtosContainNoEmailOrCredentialFields() {
         Set<String> forbidden = Set.of(
-                "otp", "gmailMessageId", "body", "accessToken", "refreshToken"
+                "otp", "deliveryOtp", "gmailMessageId", "body", "accessToken", "refreshToken"
         );
-        // The decrypted OTP is exposed only as deliveryOtp, and only for active orders (tested below).
 
         assertTrue(recordFields(OrderListResponse.class).stream().noneMatch(forbidden::contains));
         assertTrue(recordFields(OrderListResponse.OrderResponse.class).stream().noneMatch(forbidden::contains));
@@ -138,48 +134,6 @@ class OrderQueryServiceTest {
         return Arrays.stream(recordType.getRecordComponents())
                 .map(component -> component.getName())
                 .collect(Collectors.toSet());
-    }
-
-    @Test
-    void exposesTheDecryptedDeliveryOtpWhileTheOrderIsOnItsWay() {
-        Order order = order(Instant.parse("2026-08-03T10:00:00Z"));
-        order.setStatus(OrderStatus.OUT_FOR_DELIVERY);
-        order.setOtp(encryptionService.encrypt("482913"));
-        stubSingleOrder(order);
-
-        OrderListResponse.OrderResponse mapped = service.getOrders(7, PageRequest.of(0, 20))
-                .orders().content().getFirst();
-
-        assertEquals("482913", mapped.deliveryOtp());
-    }
-
-    @Test
-    void hidesTheDeliveryOtpOnceTheOrderIsFinished() {
-        for (OrderStatus status : List.of(OrderStatus.DELIVERED, OrderStatus.CANCELLED, OrderStatus.REFUNDED)) {
-            Order order = order(Instant.parse("2026-08-03T10:00:00Z"));
-            order.setStatus(status);
-            order.setOtp(encryptionService.encrypt("482913"));
-            stubSingleOrder(order);
-
-            assertNull(service.getOrders(7, PageRequest.of(0, 20)).orders().content().getFirst().deliveryOtp());
-        }
-    }
-
-    @Test
-    void hidesAnOtpThatCannotBeDecrypted() {
-        Order order = order(Instant.parse("2026-08-03T10:00:00Z"));
-        order.setOtp("482913");
-        stubSingleOrder(order);
-
-        assertNull(service.getOrders(7, PageRequest.of(0, 20)).orders().content().getFirst().deliveryOtp());
-    }
-
-    private void stubSingleOrder(Order order) {
-        when(orderRepository.findPageForUser(eq(7L), any(Pageable.class)))
-                .thenReturn(new PageImpl<>(List.of(order), PageRequest.of(0, 20), 1));
-        when(accountRepository.findFirstByUserIdAndProviderOrderByIdDesc(
-                7, ConnectedAccountProvider.GOOGLE
-        )).thenReturn(Optional.empty());
     }
 
     private Order order(Instant placedAt) {

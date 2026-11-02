@@ -41,4 +41,6 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     long countByUserId(@Param("userId") long userId);
 
     void deleteByUserId(long userId);
+
+    Optional<Order> findByIdAndUserId(long id, long userId);
 }
