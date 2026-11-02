@@ -8,5 +8,10 @@ public enum OrderStatus {
     OUT_FOR_DELIVERY,
     DELIVERED,
     CANCELLED,
-    REFUNDED
+    REFUNDED;
+
+    /** True once nothing more will be delivered for the order. */
+    public boolean isFinal() {
+        return this == DELIVERED || this == CANCELLED || this == REFUNDED;
+    }
 }

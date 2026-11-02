@@ -22,6 +22,7 @@ public record OrderListResponse(
             Boolean paid,
             OrderStatus status,
             Instant placedAt,
+            String deliveryOtp,
             List<OrderItemResponse> items
     ) {
         public OrderResponse {

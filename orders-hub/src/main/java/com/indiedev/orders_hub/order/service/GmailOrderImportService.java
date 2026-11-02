@@ -11,6 +11,7 @@ import com.indiedev.orders_hub.order.entity.OrderStatus;
 import com.indiedev.orders_hub.order.source.OrderEmailProcessingStatus;
 import com.indiedev.orders_hub.order.source.OrderEmailSource;
 import com.indiedev.orders_hub.order.source.OrderEmailSourceRepository;
+import com.indiedev.orders_hub.security.token.TokenEncryptionService;
 import com.indiedev.orders_hub.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -36,6 +37,7 @@ public class GmailOrderImportService {
     private final UserRepository userRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final CompanyMasterService companyMasterService;
+    private final TokenEncryptionService encryptionService;
 
     @Transactional(readOnly = true)
     public boolean shouldProcess(long accountId, String gmailMessageId, int parserVersion) {
@@ -266,11 +268,26 @@ public class GmailOrderImportService {
                 order.setStatus(candidate.status());
             }
         }
+        mergeDeliveryOtp(order, candidate);
         if (order.getOrderItems().isEmpty()) {
             candidate.orderItems().stream()
                     .filter(item -> StringUtils.hasText(item.productName()))
                     .map(item -> orderItem(order, item))
                     .forEach(order.getOrderItems()::add);
+        }
+    }
+
+    /**
+     * Delivery OTPs are kept only while an order can still be delivered, and only encrypted.
+     * Once the order is delivered, cancelled or refunded the OTP has no use and is removed.
+     */
+    private void mergeDeliveryOtp(Order order, GmailOrderPreview candidate) {
+        if (order.getStatus() != null && order.getStatus().isFinal()) {
+            order.setOtp(null);
+            return;
+        }
+        if (StringUtils.hasText(candidate.otp())) {
+            order.setOtp(encryptionService.encrypt(candidate.otp().strip()));
         }
     }
 
