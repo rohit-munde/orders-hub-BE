@@ -6,6 +6,7 @@ import com.indiedev.orders_hub.connectedaccount.repository.ConnectedAccountRepos
 import com.indiedev.orders_hub.connectedaccount.response.DisconnectAccountResponse;
 import com.indiedev.orders_hub.exception.LastConnectedGoogleAccountException;
 import com.indiedev.orders_hub.gmail.service.GmailConnectionService;
+import com.indiedev.orders_hub.gmail.service.GoogleAccessRevocationService;
 import com.indiedev.orders_hub.gmail.service.GoogleOAuthService;
 import com.indiedev.orders_hub.order.repository.OrderRepository;
 import com.indiedev.orders_hub.order.source.OrderEmailSourceRepository;
@@ -13,6 +14,7 @@ import com.indiedev.orders_hub.user.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -30,10 +32,12 @@ class ConnectedAccountServiceTest {
         ConnectedAccountRepository connectedAccountRepository = mock(ConnectedAccountRepository.class);
         OrderEmailSourceRepository orderEmailSourceRepository = mock(OrderEmailSourceRepository.class);
         OrderRepository orderRepository = mock(OrderRepository.class);
+        GoogleAccessRevocationService revocationService = mock(GoogleAccessRevocationService.class);
         ConnectedAccountService service = service(
                 connectedAccountRepository,
                 orderEmailSourceRepository,
-                orderRepository
+                orderRepository,
+                revocationService
         );
         ConnectedAccount account = googleAccount(9, "shopper@gmail.com");
         when(connectedAccountRepository.findByIdAndUserIdAndProvider(
@@ -56,6 +60,7 @@ class ConnectedAccountServiceTest {
         deleteOrder.verify(orderEmailSourceRepository).deleteByConnectedAccountUserId(7);
         deleteOrder.verify(orderRepository).deleteByUserId(7);
         deleteOrder.verify(connectedAccountRepository).delete(account);
+        verify(revocationService).revokeAfterCommit(List.of(account));
     }
 
     @Test
@@ -89,13 +94,28 @@ class ConnectedAccountServiceTest {
             OrderEmailSourceRepository orderEmailSourceRepository,
             OrderRepository orderRepository
     ) {
+        return service(
+                connectedAccountRepository,
+                orderEmailSourceRepository,
+                orderRepository,
+                mock(GoogleAccessRevocationService.class)
+        );
+    }
+
+    private ConnectedAccountService service(
+            ConnectedAccountRepository connectedAccountRepository,
+            OrderEmailSourceRepository orderEmailSourceRepository,
+            OrderRepository orderRepository,
+            GoogleAccessRevocationService revocationService
+    ) {
         return new ConnectedAccountService(
                 mock(UserRepository.class),
                 mock(GoogleOAuthService.class),
                 mock(GmailConnectionService.class),
                 connectedAccountRepository,
                 orderEmailSourceRepository,
-                orderRepository
+                orderRepository,
+                revocationService
         );
     }
 

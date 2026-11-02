@@ -7,6 +7,7 @@ import com.indiedev.orders_hub.connectedaccount.response.DisconnectAccountRespon
 import com.indiedev.orders_hub.exception.GmailConnectionRequiredException;
 import com.indiedev.orders_hub.exception.LastConnectedGoogleAccountException;
 import com.indiedev.orders_hub.gmail.service.GmailConnectionService;
+import com.indiedev.orders_hub.gmail.service.GoogleAccessRevocationService;
 import com.indiedev.orders_hub.gmail.service.GoogleOAuthService;
 import com.indiedev.orders_hub.connectedaccount.response.ConnectedAccountResponse;
 import com.indiedev.orders_hub.order.repository.OrderRepository;
@@ -28,6 +29,7 @@ public class ConnectedAccountService {
     private final ConnectedAccountRepository connectedAccountRepository;
     private final OrderEmailSourceRepository orderEmailSourceRepository;
     private final OrderRepository orderRepository;
+    private final GoogleAccessRevocationService googleAccessRevocationService;
 
     public ConnectedAccountResponse connectGoogle(long userId, String serverAuthCode) {
         User user = userRepository.findById(userId)
@@ -87,6 +89,7 @@ public class ConnectedAccountService {
         orderEmailSourceRepository.deleteByConnectedAccountUserId(userId);
         orderRepository.deleteByUserId(userId);
         connectedAccountRepository.delete(account);
+        googleAccessRevocationService.revokeAfterCommit(List.of(account));
 
         return new DisconnectAccountResponse(
                 true,

@@ -5,6 +5,7 @@ import com.indiedev.orders_hub.connectedaccount.entity.ConnectedAccountProvider;
 import com.indiedev.orders_hub.connectedaccount.entity.ConnectedAccountSyncStatus;
 import com.indiedev.orders_hub.connectedaccount.repository.ConnectedAccountRepository;
 import com.indiedev.orders_hub.gmail.service.GmailConnectionService;
+import com.indiedev.orders_hub.gmail.service.GoogleAccessRevocationService;
 import com.indiedev.orders_hub.gmail.service.GoogleOAuthService;
 import com.indiedev.orders_hub.order.entity.Order;
 import com.indiedev.orders_hub.order.entity.OrderItem;
@@ -79,7 +80,8 @@ class ConnectedAccountServiceDataJpaTest {
                 mock(GmailConnectionService.class),
                 connectedAccountRepository,
                 orderEmailSourceRepository,
-                orderRepository
+                orderRepository,
+                mock(GoogleAccessRevocationService.class)
         );
     }
 

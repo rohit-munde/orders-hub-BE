@@ -40,6 +40,35 @@ class GoogleOAuthServiceTest {
     }
 
     @Test
+    void revokesATokenWithGoogle() {
+        MultiValueMap<String, String> expectedForm = new LinkedMultiValueMap<>();
+        expectedForm.add("token", "refresh-token");
+
+        server.expect(once(), requestTo(GoogleOAuthService.REVOKE_ENDPOINT))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(content().formData(expectedForm))
+                .andRespond(withSuccess());
+
+        assertEquals(true, googleOAuthService.revokeToken("refresh-token"));
+        server.verify();
+    }
+
+    @Test
+    void reportsFailedRevocationWithoutThrowing() {
+        server.expect(once(), requestTo(GoogleOAuthService.REVOKE_ENDPOINT))
+                .andRespond(withResourceNotFound());
+
+        assertEquals(false, googleOAuthService.revokeToken("expired-token"));
+        server.verify();
+    }
+
+    @Test
+    void skipsRevocationWhenThereIsNoToken() {
+        assertEquals(false, googleOAuthService.revokeToken(" "));
+        server.verify();
+    }
+
+    @Test
     void exchangesAuthorizationCodeAndMapsGoogleTokenResponse() {
         MultiValueMap<String, String> expectedForm = new LinkedMultiValueMap<>();
         expectedForm.add("grant_type", "authorization_code");
