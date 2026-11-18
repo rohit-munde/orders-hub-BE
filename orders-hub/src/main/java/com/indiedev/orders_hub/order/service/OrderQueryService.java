@@ -6,6 +6,7 @@ import com.indiedev.orders_hub.order.entity.Order;
 import com.indiedev.orders_hub.order.entity.OrderItem;
 import com.indiedev.orders_hub.order.repository.OrderRepository;
 import com.indiedev.orders_hub.order.response.OrderListResponse;
+import com.indiedev.orders_hub.order.util.CompanyNormalizationUtil;
 import com.indiedev.orders_hub.common.response.PageResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -40,7 +41,9 @@ public class OrderQueryService {
     private OrderListResponse.OrderResponse toResponse(Order order) {
         return new OrderListResponse.OrderResponse(
                 order.getId(),
-                order.getCompany() != null ? order.getCompany().getBrandName() : null,
+                order.getCompany() != null
+                        ? CompanyNormalizationUtil.toDisplayBrandName(order.getCompany().getBrandName())
+                        : null,
                 order.getOrderNo(),
                 order.getCompany() != null ? order.getCompany().getLogoUrl() : null,
                 order.getBillAmount() != null ? order.getBillAmount() : order.getRefundAmount(),

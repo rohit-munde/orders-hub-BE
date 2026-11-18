@@ -136,6 +136,22 @@ class OrderQueryServiceTest {
                 .collect(Collectors.toSet());
     }
 
+    @Test
+    void showsMerchantNamesWithoutLegalSuffixes() {
+        Order order = order(Instant.parse("2026-11-18T06:02:00Z"));
+        order.getCompany().setBrandName("Cases Villa Private Limited");
+        when(orderRepository.findPageForUser(eq(7L), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(order), PageRequest.of(0, 20), 1));
+        when(accountRepository.findFirstByUserIdAndProviderOrderByIdDesc(
+                7, ConnectedAccountProvider.GOOGLE
+        )).thenReturn(Optional.empty());
+
+        OrderListResponse.OrderResponse mapped = service.getOrders(7, PageRequest.of(0, 20))
+                .orders().content().getFirst();
+
+        assertEquals("Cases Villa", mapped.brandName());
+    }
+
     private Order order(Instant placedAt) {
         Order order = new Order();
         order.setId(21);
