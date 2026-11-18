@@ -62,4 +62,26 @@ public final class CompanyNormalizationUtil {
         }
         return sb.toString();
     }
+
+    private static final java.util.regex.Pattern LEGAL_SUFFIX = java.util.regex.Pattern.compile(
+            "(?i)[\\s,]+(private\\s+limited|pvt\\.?\\s*ltd\\.?|pvt\\.?|limited|ltd\\.?|llp|inc\\.?|corp\\.?|corporation)\\s*$"
+    );
+
+    /**
+     * The merchant name shown to users: drops legal suffixes such as "Private Limited" or
+     * "Pvt. Ltd." so "Cases Villa Private Limited" reads as "Cases Villa". Returns the input
+     * unchanged if nothing would be left.
+     */
+    public static String toDisplayBrandName(String brandName) {
+        if (!StringUtils.hasText(brandName)) {
+            return brandName;
+        }
+        String value = brandName.strip();
+        String previous;
+        do {
+            previous = value;
+            value = LEGAL_SUFFIX.matcher(value).replaceAll("").strip();
+        } while (!value.equals(previous) && StringUtils.hasText(value));
+        return StringUtils.hasText(value) ? value : brandName.strip();
+    }
 }
